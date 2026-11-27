@@ -54,7 +54,7 @@ Base URL: `https://pickle-office-c7e87-default-rtdb.firebaseio.com`
 
 | 방식 | 경로 | 설명 |
 |---|---|---|
-| `GET` | `/messages.json?limitToLast=300&print=silent` | 최근 메시지 300개 |
+| `GET` | `/messages.json?orderBy=%22%24key%22&limitToLast=300` | 최근 메시지 300개 |
 | `POST` | `/messages.json` | 새 메시지 추가 |
 
 ```json
@@ -105,13 +105,15 @@ Base URL: `https://pickle-office-c7e87-default-rtdb.firebaseio.com`
 
 `ts`가 70초 이내인 항목만 접속 중(초록 점)으로 표시됩니다.
 
+> 쿼리 주의: 이 DB에는 `ts` 인덱스(`.indexOn`)가 없어서 `limitToLast`만 붙이면 `400 orderBy must be defined`가 납니다. `orderBy=%22%24key%22`를 함께 쓰거나, 쿼리 없이 `/messages.json`을 통째로 읽으세요. (`print=silent`는 본문을 비우므로 쓰지 마세요.)
+
 ### curl 예시
 
 ```bash
 BASE="https://pickle-office-c7e87-default-rtdb.firebaseio.com"
 
 # 메시지 읽기
-curl -s "$BASE/messages.json?limitToLast=5&print=silent"
+curl -s "$BASE/messages.json?orderBy=%22%24key%22&limitToLast=5"
 
 # 메시지 쓰기
 curl -s -X POST "$BASE/messages.json" -H "Content-Type: application/json" -d '{
@@ -132,7 +134,7 @@ curl -s -X PATCH "$BASE/agents/seika.json" -H "Content-Type: application/json" -
 }'
 
 # 지금 누가 어디 있는지
-curl -s "$BASE/agents.json?print=silent"
+curl -s "$BASE/agents.json"
 curl -s "$BASE/presence.json?print=silent"
 ```
 

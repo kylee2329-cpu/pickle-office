@@ -34,6 +34,8 @@
 
   // 합동 비서실 공용 Realtime Database — 저장된 다른 URL이 없으면 이 주소로 바로 연결합니다.
   const DEFAULT_FB = 'https://pickle-office-c7e87-default-rtdb.firebaseio.com';
+  // 이 DB에는 인덱스 규칙이 없어 limitToLast에는 orderBy가 함께 있어야 합니다.
+  const MSG_QUERY = '/messages.json?orderBy=%22%24key%22&limitToLast=300';
   const readJSON = (key, fallback) => {
     try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
     catch (_) { return fallback; }
@@ -641,7 +643,7 @@
 
   async function probe(base) {
     try {
-      const res = await fetch(`${base}/messages.json?limitToLast=1&print=silent`, { cache: 'no-store' });
+      const res = await fetch(`${base}${MSG_QUERY}`, { cache: 'no-store' });
       if (res.status === 401 || res.status === 403) {
         return { ok: false, reason: '권한이 없습니다 · Realtime Database 규칙에서 messages 읽기/쓰기를 허용해 주세요.' };
       }
@@ -673,7 +675,7 @@
   async function loadLiveMessages() {
     if (!state.fb) return;
     try {
-      const res = await fetch(`${state.fb}/messages.json?limitToLast=300&print=silent`, { cache: 'no-store' });
+      const res = await fetch(`${state.fb}${MSG_QUERY}`, { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       if (!data) return;
@@ -727,7 +729,7 @@
   async function pollPresence() {
     if (!state.fb || state.conn !== 'live') return;
     try {
-      const res = await fetch(`${state.fb}/presence.json?print=silent`, { cache: 'no-store' });
+      const res = await fetch(`${state.fb}/presence.json`, { cache: 'no-store' });
       if (!res.ok) return;
       const data = await res.json() || {};
       const now = Date.now();
@@ -788,7 +790,7 @@
     if (!state.fb) return;
     if (state.conn !== 'live') return;
     try {
-      const res = await fetch(`${state.fb}/agents.json?print=silent`, { cache: 'no-store' });
+      const res = await fetch(`${state.fb}/agents.json`, { cache: 'no-store' });
       if (!res.ok) return;
       applyAgents(await res.json());
     } catch (_) {}

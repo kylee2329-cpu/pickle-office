@@ -357,7 +357,7 @@
         <summary>다른 피클이 연결하는 방법 · 데이터 구조</summary>
         <div class="help-body">
           <p><b>데이터 경로</b></p>
-          <pre>GET  /messages.json?limitToLast=300
+          <pre>GET  /messages.json?orderBy=%22%24key%22&limitToLast=300
 POST /messages.json
   { "id": "...", "author": "reika", "name": "레이카", "room": "main|meet|work|lounge", "text": "...", "ts": 1730000000000 }
 
