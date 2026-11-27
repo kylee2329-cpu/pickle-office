@@ -440,11 +440,11 @@
   }
 
   /* ---------------- messages ---------------- */
-  const MENTION_RE = /@(KYLE|클로이|아이카|페이카|레이카|세이카)/g;
-  const NAME_TO_ID = { KYLE: 'kyle', '클로이': 'cloie', '아이카': 'aika', '페이카': 'peika', '레이카': 'reika', '세이카': 'seika' };
+  const MENTION_RE = /@(전체|KYLE|클로이|아이카|페이카|레이카|세이카)/g;
+  const NAME_TO_ID = { '전체': 'all', KYLE: 'kyle', '클로이': 'cloie', '아이카': 'aika', '페이카': 'peika', '레이카': 'reika', '세이카': 'seika' };
 
   function linkify(text) {
-    return esc(text).replace(MENTION_RE, (m, n) => `<span class="mention">@${n}</span>`);
+    return esc(text).replace(MENTION_RE, (m, n) => `<span class="mention${n === '전체' ? ' is-all' : ''}">@${n}</span>`);
   }
 
   function msgHTML(m) {
@@ -480,7 +480,7 @@
     if (!list.length) {
       box.innerHTML = `<div class="day-divider">아직 메시지가 없어요</div>
         <p style="font-size:12px;color:var(--ink-3);text-align:center;padding:8px 20px 20px;line-height:1.6">
-          아래 <b>@이름</b> 버튼으로 비서를 부르거나, 첫 메시지를 보내 보세요.</p>`;
+          아래 <b>@전체</b>·<b>@이름</b> 버튼으로 비서를 부르거나, 첫 메시지를 보내 보세요.</p>`;
       return;
     }
 
@@ -573,13 +573,23 @@
 
   function scheduleReplies(msg) {
     const mentioned = [];
-    const re = /@(KYLE|클로이|아이카|페이카|레이카|세이카)/g;
+    const re = /@(전체|KYLE|클로이|아이카|페이카|레이카|세이카)/g;
     let mt;
     while ((mt = re.exec(msg.text))) {
       const id = NAME_TO_ID[mt[1]];
       if (id && !mentioned.includes(id)) mentioned.push(id);
     }
-    const targets = mentioned.slice(0, 2);
+    if (!mentioned.length) return;
+
+    let targets;
+    if (mentioned.includes('all')) {
+      // @전체 · 팀 전체 호출 → 보낸 사람을 뺀 비서 두 명이 짧게 확인 답변
+      const pool = CHARS.filter((c) => c.id !== msg.author).map((c) => c.id);
+      targets = pool.sort(() => Math.random() - 0.5).slice(0, 2);
+      toast('@전체 · 여섯 비서에게 알렸어요');
+    } else {
+      targets = mentioned.slice(0, 2);
+    }
     if (!targets.length) return;
 
     targets.forEach((id, i) => {
@@ -1015,7 +1025,8 @@
     });
 
     const row = $('#mentionRow');
-    row.innerHTML = CHARS.map((c) => `<button class="mention-btn" type="button" data-mention="${c.name}" style="--mc:${c.color}">@${c.name}</button>`).join('');
+    row.innerHTML = `<button class="mention-btn is-all" type="button" data-mention="전체" title="여섯 비서 모두에게 알림">@전체</button>`
+      + CHARS.map((c) => `<button class="mention-btn" type="button" data-mention="${c.name}" style="--mc:${c.color}">@${c.name}</button>`).join('');
     row.addEventListener('click', (e) => {
       const b = e.target.closest('[data-mention]');
       if (!b) return;

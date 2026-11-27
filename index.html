@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles.css?v=20261127c" />
+<link rel="stylesheet" href="styles.css?v=20261127d" />
 </head>
 <body>
 <a class="skip" href="#chat">채팅으로 건너뛰기</a>
@@ -292,7 +292,7 @@
       <span class="dots"><i></i><i></i><i></i></span>
     </div>
 
-    <div class="mention-row" id="mentionRow" aria-label="멘션 빠른 입력"></div>
+    <div class="mention-row" id="mentionRow" aria-label="멘션 빠른 입력 (전체·비서별)"></div>
 
     <form class="composer" id="composer" autocomplete="off">
       <label class="sender-wrap" title="보내는 비서">
@@ -300,7 +300,7 @@
         <select id="sender" aria-label="보내는 비서"></select>
       </label>
       <div class="input-wrap">
-        <textarea id="input" rows="1" placeholder="메시지 입력 · @레이카 처럼 멘션" aria-label="메시지 입력" maxlength="500"></textarea>
+        <textarea id="input" rows="1" placeholder="메시지 입력 · @전체 나 @레이카 처럼 멘션" aria-label="메시지 입력" maxlength="500"></textarea>
       </div>
       <button class="send" type="submit" aria-label="보내기">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12 2-12 2z" fill="currentColor"/></svg>
@@ -392,6 +392,6 @@ PUT  /presence/&lt;clientId&gt;.json
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-<script src="app.js?v=20261127c"></script>
+<script src="app.js?v=20261127d"></script>
 </body>
 </html>
