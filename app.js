@@ -577,7 +577,7 @@
     void el.offsetWidth; // 애니메이션 재시작
     el.classList.add('is-flash');
     clearTimeout(el._flash);
-    el._flash = setTimeout(() => el.classList.remove('is-flash'), 2000);
+    el._flash = setTimeout(() => el.classList.remove('is-flash'), 2700);
   }
 
   function msgHTML(m) {

@@ -770,17 +770,17 @@ button { cursor: pointer; }
 
 /* 답글 대상으로 고른 메시지 / 원문으로 이동했을 때 잠깐 하이라이트 */
 .msg.is-reply-src .text { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); }
-.msg.is-flash { border-radius: 12px; animation: msgflash 2s ease-out; }
+.msg.is-flash { border-radius: 14px; animation: msgflash 2.6s ease-out; }
 @keyframes msgflash {
   0% {
-    background: color-mix(in srgb, var(--accent) 22%, transparent);
-    box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 22%, transparent);
+    background: color-mix(in srgb, var(--accent) 26%, transparent);
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 26%, transparent);
   }
-  70% {
-    background: color-mix(in srgb, var(--accent) 9%, transparent);
-    box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 7%, transparent);
+  55% {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 15%, transparent);
   }
-  100% { background: transparent; box-shadow: 0 0 0 0 transparent; }
+  100% { background: transparent; box-shadow: 0 0 0 8px transparent; }
 }
 
 /* 입력창 위 답글 대상 미리보기 바 */
