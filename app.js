@@ -408,7 +408,8 @@
       picked.push(c);
     });
     picked.forEach((c) => {
-      const line = c.lines[Math.floor(Math.random() * c.lines.length)];
+      const ag = state.conn === 'live' ? state.agents[c.id] : null;
+      const line = (ag && ag.task) || c.lines[Math.floor(Math.random() * c.lines.length)];
       setBubble(c.id, line, false);
     });
   }
@@ -809,6 +810,7 @@
     state.agentSig[id] = `${payload.room}|${payload.status}|${payload.task}|${payload.updatedAt}`;
     state.agentBubble[id] = payload.task;
     state.agentLocalAt[id] = Date.now();
+    if (state.selected === id) renderDetail();
     try {
       await fetch(`${state.fb}/agents/${encodeURIComponent(id)}.json`, {
         method: 'PUT',
