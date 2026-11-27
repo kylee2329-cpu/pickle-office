@@ -230,6 +230,15 @@
     </svg>`;
   }
 
+  /* ---------------- cartoon face avatars ---------------- */
+  // 2026-11-28: SVG 글리프 대신 쓰는 카툰 얼굴 이미지. 로드 실패 시 기존 글리프로 자동 대체됩니다.
+  const AVATAR_V = '20261128e';
+  const faceHTML = (c, cls = '') => `<span class="face ${cls}" style="--fc:${c.color}">
+      <img class="face-img" src="assets/avatars/${c.id}.png?v=${AVATAR_V}" alt="" width="384" height="384"
+        decoding="async" onerror="this.parentNode.classList.add('face-failed')" />
+      <span class="face-fb">${glyphSVG(c)}</span>
+    </span>`;
+
   /* ---------------- seats & map ---------------- */
   function initSeats() {
     const saved = readJSON(LS.seats, null) || {};
@@ -280,7 +289,7 @@
         style="--x:${p.x}%;--y:${p.y}%;--size:${c.size}px;--delay:-${(i * 0.8).toFixed(1)}s"
         aria-label="${c.name} 비서 ${c.rank}순위, ${ROOMS[seatOf(c.id).room].name}, 역할 보기">
         <span class="bubble" data-bubble="${c.id}"></span>
-        <span class="body">${glyphSVG(c)}</span>
+        <span class="body">${faceHTML(c, 'face-map')}</span>
         <span class="name-tag" style="--tag-c:${c.color}"><b>${c.name}</b></span>
       </button>`;
     }).join('');
@@ -335,7 +344,7 @@
       const st = ag && STATUS[ag.status] ? STATUS[ag.status] : null;
       box.innerHTML = `
         <div class="detail-inner" style="--dc:${c.color}">
-          <div class="detail-avatar">${glyphSVG(c)}</div>
+          <div class="detail-avatar">${faceHTML(c, 'face-detail')}</div>
           <div class="detail-main">
             <div class="detail-title">
               <span class="name">${c.name}</span>
@@ -366,7 +375,7 @@
             <p class="detail-role">${ROOMS[r].desc}</p>
             <div class="detail-people">
               ${people.length
-                ? people.map((c) => `<span class="person-chip" style="--dc:${c.color}">${glyphSVG(c)}${c.name}</span>`).join('')
+                ? people.map((c) => `<span class="person-chip" style="--dc:${c.color}">${faceHTML(c, 'face-chip')}${c.name}</span>`).join('')
                 : '<span class="person-chip">지금은 아무도 없어요</span>'}
             </div>
           </div>
@@ -448,7 +457,7 @@
       const room = seatOf(c.id).room;
       const on = state.conn === 'live' && state.online[c.id];
       return `<button class="char-chip${state.selected === c.id ? ' is-selected' : ''}${on ? ' is-online' : ''}" type="button" data-id="${c.id}" style="--cc:${c.color}" aria-label="${c.name} 비서 상세 보기">
-        <span class="mini">${glyphSVG(c)}</span>
+        <span class="mini">${faceHTML(c, 'face-mini')}</span>
         <span class="meta"><span class="nm">${c.name}</span><span class="rm">${c.rank}순위 · ${ROOMS[room].name}</span></span>
       </button>`;
     }).join('');
@@ -587,7 +596,7 @@
     const color = c ? c.color : (isOwner ? OWNER.color : '#8a8173');
     const name = c ? c.name : (isOwner ? (m.name || OWNER.name) : (m.name || m.author || '게스트'));
     const avatar = c
-      ? glyphSVG(c)
+      ? faceHTML(c, 'face-msg')
       : isOwner
         ? ownerAvatar(color, name)
         : `<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="${color}" opacity=".22"/><text x="20" y="26" text-anchor="middle" font-size="17" font-weight="900" fill="${color}">${esc(name.slice(0, 1))}</text></svg>`;
