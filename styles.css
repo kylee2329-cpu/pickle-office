@@ -357,6 +357,8 @@ button { cursor: pointer; }
 
 /* 지도 캐릭터 — 각자 고유 색 테두리 + 부드러운 그림자 */
 .critter .face-map {
+  width: 86%;
+  margin-inline: auto;
   border: calc(2px * var(--cs) + 1px) solid color-mix(in srgb, var(--fc) 76%, #fff);
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--fc) 30%, transparent), 0 5px 12px rgba(40, 30, 15, .22);
   background: color-mix(in srgb, var(--fc) 24%, #fff);
