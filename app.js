@@ -230,9 +230,9 @@
     </svg>`;
   }
 
-  /* ---------------- cartoon face avatars ---------------- */
-  // 2026-11-28: SVG 글리프 대신 쓰는 카툰 얼굴 이미지. 로드 실패 시 기존 글리프로 자동 대체됩니다.
-  const AVATAR_V = '20261128f';
+  /* ---------------- semi-realistic face avatars ---------------- */
+  // 2026-11-28: SVG 글리프 대신 쓰는 세미리얼 인물 이미지. 로드 실패 시 기존 글리프로 자동 대체됩니다.
+  const AVATAR_V = '20261128g';
   const faceHTML = (c, cls = '') => `<span class="face ${cls}" style="--fc:${c.color}">
       <img class="face-img" src="assets/avatars/${c.id}.png?v=${AVATAR_V}" alt="" width="384" height="384"
         decoding="async" onerror="this.parentNode.classList.add('face-failed')" />
@@ -301,9 +301,12 @@
       const btn = $(`.critter[data-id="${c.id}"]`);
       if (!btn) return;
       const p = seatPos(c.id);
+      const moved = btn.style.getPropertyValue('--x') !== p.x + '%' || btn.style.getPropertyValue('--y') !== p.y + '%';
       btn.style.setProperty('--x', p.x + '%');
       btn.style.setProperty('--y', p.y + '%');
       btn.setAttribute('aria-label', `${c.name} 비서 ${c.rank}순위, ${ROOMS[seatOf(c.id).room].name}, 역할 보기`);
+      // 실제 방 이동이 오면 유휴 오프셋을 즉시 지우고 새 자리에서 다시 시작합니다.
+      if (moved) resetIdle(c.id);
     });
   }
 
@@ -311,7 +314,68 @@
     const map = $('#map');
     const w = map.clientWidth || 900;
     const cs = clamp(w / 900, 0.54, 1.12);
+    state.cs = cs;
     $('.critters').style.setProperty('--cs', cs.toFixed(3));
+  }
+
+  /* ---------------- idle motion (자리 안에서의 미세 이동) ---------------- */
+  // 12~20초마다 배정된 방 안에서 반지름 10~18px(화면 배율 반영)만큼 부드럽게 옮겨 갑니다.
+  // left/top(방 이동)과 분리된 translate만 건드려 리플로우 없이 GPU에서 합성됩니다.
+  const IDLE_MIN = 12000;
+  const IDLE_MAX = 20000;
+  const idleTimers = {};
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const idleStatic = () => {
+    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+    catch (_) { return false; }
+  };
+  const setIdleOffset = (id, x, y) => {
+    const btn = $(`.critter[data-id="${id}"]`);
+    if (btn) btn.style.translate = `${x.toFixed(1)}px ${y.toFixed(1)}px`;
+  };
+
+  function resetIdle(id) {
+    clearTimeout(idleTimers[id]);
+    idleTimers[id] = null;
+    setIdleOffset(id, 0, 0);
+    scheduleIdle(id);
+  }
+
+  function scheduleIdle(id, delay) {
+    clearTimeout(idleTimers[id]);
+    idleTimers[id] = setTimeout(() => {
+      idleTimers[id] = null;
+      idleStep(id);
+      scheduleIdle(id);
+    }, delay == null ? rand(IDLE_MIN, IDLE_MAX) : delay);
+  }
+
+  function idleStep(id) {
+    if (idleStatic() || document.hidden) return;
+    // 상세 카드가 열려 있거나 캐릭터를 선택·누르는 중이면 건드리지 않습니다.
+    if (state.selected || state.roomInfo) return;
+    const btn = $(`.critter[data-id="${id}"]`);
+    if (!btn || btn.matches(':hover, :active, :focus-visible')) return;
+    const r = rand(10, 18) * (state.cs || 1);
+    const a = rand(0, Math.PI * 2);
+    setIdleOffset(id, Math.cos(a) * r, Math.sin(a) * r * 0.62);
+  }
+
+  function pauseIdle() {
+    CHARS.forEach((c) => {
+      clearTimeout(idleTimers[c.id]);
+      idleTimers[c.id] = null;
+      setIdleOffset(c.id, 0, 0);
+    });
+  }
+
+  function resumeIdle() {
+    CHARS.forEach((c, i) => scheduleIdle(c.id, 2200 + i * 1100 + rand(0, 900)));
+  }
+
+  function startIdleMotion() {
+    state.idlePaused = false;
+    resumeIdle();
   }
 
   /* ---------------- selection / detail ---------------- */
@@ -385,6 +449,13 @@
     } else {
       box.hidden = true;
       box.innerHTML = '';
+    }
+    const opened = !box.hidden;
+    $('#map').classList.toggle('idle-paused', opened);
+    if (opened !== !!state.idlePaused) {
+      state.idlePaused = opened;
+      if (opened) pauseIdle();
+      else resumeIdle();
     }
   }
 
@@ -1329,6 +1400,7 @@
     initSeats();
     seedIfEmpty();
     renderCritters();
+    startIdleMotion();
     renderLegend();
     renderCharBar();
     wireMap();

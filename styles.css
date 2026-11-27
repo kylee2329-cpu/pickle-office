@@ -331,7 +331,7 @@ button { cursor: pointer; }
 }
 @keyframes dash { to { stroke-dashoffset: -320; } }
 
-/* ---------------- cartoon face avatars ---------------- */
+/* ---------------- semi-realistic face avatars ---------------- */
 /* 2026-11-28: 카툰 얼굴 이미지를 원형 프레임에 담아 지도·채팅·카드에서 함께 씁니다. */
 
 .face {
@@ -395,7 +395,7 @@ button { cursor: pointer; }
   padding: 0;
   background: none;
   pointer-events: auto;
-  transition: left .85s cubic-bezier(.4, 1.4, .4, 1), top .85s cubic-bezier(.4, 1.4, .4, 1);
+  transition: left .85s cubic-bezier(.4, 1.4, .4, 1), top .85s cubic-bezier(.4, 1.4, .4, 1), translate 2.6s cubic-bezier(.33, .85, .35, 1);
   -webkit-tap-highlight-color: transparent;
   z-index: 2;
 }
@@ -410,6 +410,24 @@ button { cursor: pointer; }
 }
 .critter:hover .body { transform: translateY(-3px) scale(1.05); }
 .critter.is-selected .body { transform: translateY(-4px) scale(1.08); }
+
+/* 유휴 움직임 — 제자리에서 아주 천천히 떠 있는 숨쉬기(translate만 사용해 GPU 합성) */
+@keyframes idle-float {
+  0%, 100% { translate: 0 0; }
+  40% { translate: 0 calc(var(--cs, 1) * -3.2px); }
+  68% { translate: 0 calc(var(--cs, 1) * -0.8px); }
+}
+.critter .body {
+  animation: idle-float 7.6s ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+  will-change: translate;
+}
+/* 클릭·호버·선택·상세 카드가 열린 동안에는 움직임을 멈춰 조작을 방해하지 않습니다 */
+.critter:hover .body,
+.critter:focus-visible .body,
+.critter:active .body,
+.critter.is-selected .body,
+#map.idle-paused .critter .body { animation-play-state: paused; }
 .critter.is-selected::after {
   content: "";
   position: absolute;
