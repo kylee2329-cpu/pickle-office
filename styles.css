@@ -333,6 +333,8 @@ button { cursor: pointer; }
 
 /* ---------------- critters ---------------- */
 
+.room-chips { display: none; }
+
 .critters {
   position: absolute; inset: 0;
   pointer-events: none;
@@ -978,6 +980,25 @@ button { cursor: pointer; }
     display: block;
     max-width: 150px;
     z-index: 20;
+  }
+
+  /* 모바일에서는 SVG 라벨 대신 읽기 좋은 방 이름 칩 */
+  .labels { display: none; }
+  .room-chips { display: block; position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+  .room-chips span {
+    position: absolute;
+    left: var(--rx);
+    top: var(--ry);
+    transform: translateY(-50%);
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: -.01em;
+    color: var(--label-ink);
+    background: var(--label-bg);
+    border: 1px solid var(--line);
+    padding: 2px 7px;
+    border-radius: 999px;
+    white-space: nowrap;
   }
 }
 
