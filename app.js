@@ -29,7 +29,8 @@
     fb: 'po.fb.v1',
     demo: 'po.demo.v1',
     client: 'po.client.v1',
-    sender: 'po.sender.v1',
+    // v2: '대표님'(owner)이 기본 발신자가 되면서 키를 올렸습니다. (v1에 'reika'가 남아 있어도 새 기본값 적용)
+    sender: 'po.sender.v2',
   };
 
   // 합동 비서실 공용 Realtime Database — 저장된 다른 URL이 없으면 이 주소로 바로 연결합니다.
@@ -144,6 +145,12 @@
   ];
 
   const byId = Object.fromEntries(CHARS.map((c) => [c.id, c]));
+
+  // 채팅 발신자 전용 '대표님'. 오피스 맵 캐릭터(CHARS)에는 넣지 않아 지도/자리/말풍선에는 나타나지 않습니다.
+  const OWNER = { id: 'owner', name: '대표님', color: 'var(--owner-ink)' };
+  const DEFAULT_SENDER = OWNER.id;
+  const SENDERS = [OWNER, ...CHARS];
+  const senderOf = (id) => (id === OWNER.id ? OWNER : (byId[id] || null));
   const TABS = [
     { id: 'all', label: '#전체' },
     { id: 'meet', label: '#회의실' },
@@ -153,7 +160,7 @@
   /* ---------------- state ---------------- */
   const state = {
     tab: 'all',
-    sender: localStorage.getItem(LS.sender) || 'reika',
+    sender: localStorage.getItem(LS.sender) || DEFAULT_SENDER,
     selected: null,
     seats: {},
     demoMsgs: [],
@@ -447,21 +454,33 @@
     return esc(text).replace(MENTION_RE, (m, n) => `<span class="mention${n === '전체' ? ' is-all' : ''}">@${n}</span>`);
   }
 
+  function ownerAvatar(color, name) {
+    return `<svg viewBox="0 0 40 40" aria-hidden="true">
+      <circle cx="20" cy="20" r="16" fill="${color}" opacity=".18"/>
+      <circle cx="20" cy="15.4" r="5.1" fill="${color}"/>
+      <path d="M10.6 30.2c1.5-4.5 5.1-6.9 9.4-6.9s7.9 2.4 9.4 6.9" fill="none" stroke="${color}" stroke-width="2.7" stroke-linecap="round"/>
+      <title>${esc(name)}</title>
+    </svg>`;
+  }
+
   function msgHTML(m) {
     const c = byId[m.author];
-    const color = c ? c.color : '#8a8173';
-    const name = c ? c.name : (m.name || m.author || '게스트');
+    const isOwner = !c && m.author === OWNER.id;
+    const color = c ? c.color : (isOwner ? OWNER.color : '#8a8173');
+    const name = c ? c.name : (isOwner ? (m.name || OWNER.name) : (m.name || m.author || '게스트'));
     const avatar = c
       ? glyphSVG(c)
-      : `<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="${color}" opacity=".22"/><text x="20" y="26" text-anchor="middle" font-size="17" font-weight="900" fill="${color}">${esc(name.slice(0, 1))}</text></svg>`;
+      : isOwner
+        ? ownerAvatar(color, name)
+        : `<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="${color}" opacity=".22"/><text x="20" y="26" text-anchor="middle" font-size="17" font-weight="900" fill="${color}">${esc(name.slice(0, 1))}</text></svg>`;
     const roomTag = state.tab === 'all' && m.room && ROOMS[m.room]
       ? `<span class="room-tag">${ROOMS[m.room].name}</span>` : '';
-    return `<article class="msg" data-mid="${esc(m.id)}" style="--ac:${color}">
+    return `<article class="msg${isOwner ? ' is-owner' : ''}" data-mid="${esc(m.id)}" style="--ac:${color}">
       <div class="avatar">${avatar}</div>
       <div class="msg-body">
         <div class="msg-meta">
           <span class="who">${esc(name)}</span>
-          ${c ? `<span class="rank">${c.rank}순위</span>` : ''}
+          ${c && c.rank ? `<span class="rank">${c.rank}순위</span>` : isOwner ? `<span class="rank">대표</span>` : ''}
           ${roomTag}
           <time datetime="${new Date(m.ts).toISOString()}">${timeHM(m.ts)}</time>
         </div>
@@ -544,7 +563,7 @@
 
   /* ---------------- send ---------------- */
   function currentRoomForSend(sender) {
-    if (state.tab === 'all') return seatOf(sender.id).room;
+    if (state.tab === 'all') return sender.id === OWNER.id ? 'main' : seatOf(sender.id).room;
     return state.tab;
   }
 
@@ -615,7 +634,7 @@
     const input = $('#input');
     const text = input.value.replace(/\s+$/, '');
     if (!text.trim()) return;
-    const sender = byId[state.sender] || byId.reika;
+    const sender = senderOf(state.sender) || OWNER;
     const room = currentRoomForSend(sender);
     const msg = { id: uid(), author: sender.id, name: sender.name, room, text, ts: Date.now() };
     input.value = '';
@@ -727,12 +746,13 @@
 
   async function pushPresence() {
     if (!state.fb || state.conn !== 'live') return;
-    const sender = byId[state.sender] || byId.reika;
+    const sender = senderOf(state.sender) || OWNER;
+    const room = sender.id === OWNER.id ? 'main' : seatOf(sender.id).room;
     try {
       await fetch(`${state.fb}/presence/${clientId}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ author: sender.id, name: sender.name, room: seatOf(sender.id).room, ts: Date.now() }),
+        body: JSON.stringify({ author: sender.id, name: sender.name, room, ts: Date.now() }),
       });
     } catch (_) {}
   }
@@ -1034,9 +1054,11 @@
     });
 
     const sel = $('#sender');
-    sel.innerHTML = CHARS.map((c) => `<option value="${c.id}">${c.name}</option>`).join('');
-    sel.value = byId[state.sender] ? state.sender : 'reika';
+    sel.innerHTML = SENDERS.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+    if (!senderOf(state.sender)) state.sender = DEFAULT_SENDER;
+    sel.value = state.sender;
     state.sender = sel.value;
+    try { localStorage.setItem(LS.sender, state.sender); } catch (_) {}
     sel.addEventListener('change', () => {
       state.sender = sel.value;
       try { localStorage.setItem(LS.sender, state.sender); } catch (_) {}
@@ -1130,6 +1152,8 @@
 
   /* ---------------- boot ---------------- */
   function boot() {
+    // 예전 발신자 키(v1, 기본 'reika')는 지워서 '대표님' 기본값이 적용되게 합니다.
+    try { localStorage.removeItem('po.sender.v1'); } catch (_) {}
     initSeats();
     seedIfEmpty();
     renderCritters();

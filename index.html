@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles.css?v=20261127d" />
+<link rel="stylesheet" href="styles.css?v=20261127e" />
 </head>
 <body>
 <a class="skip" href="#chat">채팅으로 건너뛰기</a>
@@ -295,9 +295,9 @@
     <div class="mention-row" id="mentionRow" aria-label="멘션 빠른 입력 (전체·비서별)"></div>
 
     <form class="composer" id="composer" autocomplete="off">
-      <label class="sender-wrap" title="보내는 비서">
-        <span class="sr-only">보내는 비서</span>
-        <select id="sender" aria-label="보내는 비서"></select>
+      <label class="sender-wrap" title="보내는 사람">
+        <span class="sr-only">보내는 사람</span>
+        <select id="sender" aria-label="보내는 사람"></select>
       </label>
       <div class="input-wrap">
         <textarea id="input" rows="1" placeholder="메시지 입력 · @전체 나 @레이카 처럼 멘션" aria-label="메시지 입력" maxlength="500"></textarea>
@@ -392,6 +392,6 @@ PUT  /presence/&lt;clientId&gt;.json
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-<script src="app.js?v=20261127d"></script>
+<script src="app.js?v=20261127e"></script>
 </body>
 </html>

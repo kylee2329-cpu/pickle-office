@@ -683,6 +683,11 @@ button { cursor: pointer; }
 .msg .msg-body { min-width: 0; flex: 1; }
 .msg .msg-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; flex-wrap: wrap; }
 .msg .who { font-size: 12px; font-weight: 900; color: var(--ac); }
+/* 대표님(채팅 발신자 전용) — 라이트/다크 모두에서 읽히는 금색 */
+.msg.is-owner { --owner-ink: #9a6b12; }
+@media (prefers-color-scheme: dark) {
+  .msg.is-owner { --owner-ink: #e9b64e; }
+}
 .msg .rank { font-size: 9.5px; font-weight: 800; color: var(--ink-3); padding: 1px 5px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line-2); }
 .msg time { font-size: 10px; color: var(--ink-3); margin-left: auto; }
 .msg .room-tag {
