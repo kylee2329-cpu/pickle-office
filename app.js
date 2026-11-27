@@ -92,12 +92,12 @@
   const MAP_W = 1402;
   const MAP_H = 1122;
   const SLOTS = {
-    // 소파 위·소파 옆 넓은 바닥·러그·아래쪽 바닥에 고르게 분산(6명이 모두 모여도 서로 겹치지 않게)
-    main: [[330, 280], [525, 350], [415, 470], [525, 660], [455, 830], [250, 845]],
+    // 소파 옆 넓은 바닥·러그·아래쪽 바닥에 고르게 분산(6명이 모두 모여도 서로 겹치지 않게)
+    main: [[504, 329], [549, 525], [417, 462], [515, 763], [357, 910], [469, 924]],
     // 긴 회의 테이블 둘레(위 3, 왼쪽 끝, 오른쪽 끝, 앞쪽)
-    meet: [[700, 160], [860, 150], [1020, 160], [675, 315], [1095, 300], [775, 370]],
+    meet: [[707, 168], [861, 137], [1015, 161], [658, 343], [1106, 343], [840, 448]],
     // 워크스테이션 의자 3 + 아래쪽 바닥 3
-    work: [[760, 755], [920, 755], [1080, 755], [720, 885], [880, 885], [1040, 885]],
+    work: [[763, 853], [945, 853], [1127, 853], [854, 958], [1036, 958], [1218, 958]],
   };
 
   const CHARS = [
@@ -516,10 +516,16 @@
   const pickLoungeLine = () => LOUNGE_LINES[Math.floor(Math.random() * LOUNGE_LINES.length)];
 
   const bubbleUntil = {};
+  // 말풍선은 두세 줄로 끝나게 줄입니다(전체 문구는 상세 카드·채팅에서 확인).
+  const BUBBLE_LEN = 46;
+  const bubbleText = (text) => {
+    const one = String(text == null ? '' : text).replace(/\s+/g, ' ').trim();
+    return one.length > BUBBLE_LEN ? one.slice(0, BUBBLE_LEN - 1).trimEnd() + '…' : one;
+  };
   function setBubble(id, text, force) {
     const el = $(`[data-bubble="${id}"]`);
     if (!el) return;
-    el.textContent = text;
+    el.textContent = bubbleText(text);
     el.classList.add('is-on');
     schedulePlaceBubbles();
     clearTimeout(el._t);

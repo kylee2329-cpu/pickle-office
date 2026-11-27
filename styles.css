@@ -522,7 +522,7 @@ button { cursor: pointer; }
 }
 .bubble[data-side="down"] {
   bottom: auto;
-  top: calc(100% + 12px);
+  top: calc(100% + 16px);   /* 이름표 아래로 내려 이름표를 가리지 않게 */
 }
 .bubble[data-side="left"] {
   left: auto;
