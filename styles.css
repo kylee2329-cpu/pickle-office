@@ -48,8 +48,8 @@
   --plant: #7fa36b;
   --plant-2: #9cbb86;
   --crate: #d9b98f;
-  --label-bg: rgba(255, 255, 255, .78);
-  --label-ink: #8c8272;
+  --label-bg: rgba(255, 255, 255, .92);
+  --label-ink: #6b6252;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -280,7 +280,7 @@ button { cursor: pointer; }
 .monitor rect { fill: var(--monitor); }
 .screen-in { fill: var(--screen-in); }
 .screen-bar { fill: var(--monitor); }
-.clock { fill: none; stroke: var(--wall); stroke-width: 2.5; }
+.clock { fill: var(--panel); stroke: var(--wall); stroke-width: 2.5; }
 .clock-hand { stroke: var(--label-ink); stroke-width: 2; stroke-linecap: round; fill: none; }
 .plant ellipse { fill: var(--crate); }
 .plant path { fill: var(--plant); stroke: var(--plant); stroke-width: 2.5; stroke-linecap: round; }
@@ -420,7 +420,7 @@ button { cursor: pointer; }
   left: 50%;
   bottom: calc(100% - 8px);
   transform: translate(-50%, 4px);
-  max-width: calc(148px * var(--cs));
+  max-width: calc(134px * var(--cs));
   width: max-content;
   padding: 7px 10px;
   border-radius: 13px;
@@ -429,7 +429,7 @@ button { cursor: pointer; }
   border: 1px solid var(--line);
   box-shadow: 0 6px 18px rgba(40, 30, 15, .13);
   font-family: "Gowun Dodum", "Noto Sans KR", sans-serif;
-  font-size: calc(9px * var(--cs) + 2.5px);
+  font-size: calc(8.6px * var(--cs) + 2.4px);
   line-height: 1.35;
   text-align: center;
   opacity: 0;

@@ -59,15 +59,15 @@
 
   // 자리 좌표는 SVG 평면도 좌표계(1000 x 640) 기준
   const SLOTS = {
-    main: [[120, 218], [240, 218], [356, 218], [150, 288], [268, 288], [378, 288]],
-    meet: [[542, 206], [890, 206], [690, 122], [790, 122], [690, 296], [790, 296]],
-    work: [[180, 486], [280, 486], [356, 486], [132, 540], [236, 540], [330, 540]],
-    lounge: [[600, 540], [700, 556], [800, 540], [562, 462], [880, 470], [652, 470]],
+    main: [[120, 218], [240, 218], [356, 218], [150, 290], [268, 290], [378, 290]],
+    meet: [[542, 206], [890, 206], [690, 124], [790, 124], [690, 296], [790, 296]],
+    work: [[290, 478], [190, 478], [368, 470], [240, 552], [330, 552], [152, 530]],
+    lounge: [[600, 548], [712, 556], [792, 548], [556, 470], [884, 472], [770, 452]],
   };
 
   const CHARS = [
     {
-      id: 'kyle', name: 'KYLE', rank: 1, title: '총괄 PM', color: '#4a5a7a', size: 78, room: 'main',
+      id: 'kyle', name: 'KYLE', rank: 1, title: '총괄 PM', color: '#4a5a7a', size: 84, room: 'main',
       role: '일정과 우선순위를 총괄하고, 팀의 결과를 최종 검수해 보고합니다.',
       quote: '오늘 우선순위부터 정리할게요.',
       paths: ['M38 30H82V92', 'M38 61H82'], stroke: 15, eyes: [[53, 78, 4.4], [69, 78, 4.4]], mouth: [61, 87],
@@ -75,7 +75,7 @@
       replies: ['확인했습니다. 우선순위에 올려 둘게요.', '일정 확인하고 다시 알려 드릴게요.', '좋은데요. 제가 최종 검수까지 볼게요.'],
     },
     {
-      id: 'cloie', name: '클로이', rank: 2, title: '비서실장', color: '#c9506f', size: 72, room: 'main',
+      id: 'cloie', name: '클로이', rank: 2, title: '비서실장', color: '#c9506f', size: 78, room: 'main',
       role: '업무를 나누고 인수인계를 챙기며, 팀의 결과물 품질을 점검합니다.',
       quote: '인수인계 노트 업데이트했어요.',
       paths: ['M64 14V26', 'M40 38H88', 'M64 38V50', 'M64 50 40 94', 'M64 50 88 94'], stroke: 15,
@@ -84,7 +84,7 @@
       replies: ['네, 인수인계 노트에 적어 둘게요.', '제가 팀에 나눠서 진행할게요.', '확인했어요. 회의실에서 정리해요.'],
     },
     {
-      id: 'aika', name: '아이카', rank: 3, title: '마케팅·기획', color: '#0f9d78', size: 68, room: 'meet',
+      id: 'aika', name: '아이카', rank: 3, title: '마케팅·기획', color: '#0f9d78', size: 76, room: 'meet',
       role: '콘텐츠를 기획하고 캠페인을 실행해요. 지표를 보고 다음 수를 제안합니다.',
       quote: '이번 주 콘텐츠 초안 나왔어요.',
       circle: [64, 60, 30, 15], belly: true,
@@ -93,7 +93,7 @@
       replies: ['초안 두 개로 준비해 둘게요.', '지표 먼저 확인하고 말씀드릴게요.', '좋아요, 그 방향으로 기획해 볼게요.'],
     },
     {
-      id: 'peika', name: '페이카', rank: 4, title: '운영 지원', color: '#e08a1e', size: 70, room: 'work',
+      id: 'peika', name: '페이카', rank: 4, title: '운영 지원', color: '#e08a1e', size: 78, room: 'work',
       role: '데이터를 정리하고 리포트를 만들며 반복 업무를 자동화합니다.',
       quote: '데이터 정리해서 올렸어요.',
       paths: ['M36 34V96', 'M92 34V96', 'M22 34H106', 'M22 96H106'], stroke: 15,
@@ -102,7 +102,7 @@
       replies: ['숫자로 정리해서 올려 둘게요.', '자동화로 돌려 놓고 결과 알려 드릴게요.', '리포트에 반영해 둘게요.'],
     },
     {
-      id: 'reika', name: '레이카', rank: 5, title: '에그만 운영', color: '#7048e8', size: 72, room: 'main',
+      id: 'reika', name: '레이카', rank: 5, title: '에그만 운영', color: '#7048e8', size: 82, room: 'main',
       role: '에그만 주문·CS·재고를 확인하고 평일 브리핑을 올립니다.',
       quote: '에그만 주문 확인하고 있어요.',
       paths: ['M64 24 26 100', 'M64 24 102 100'], stroke: 16,
@@ -111,7 +111,7 @@
       replies: ['네, 확인하고 바로 정리해서 올릴게요.', '에그만 쪽은 제가 보고 있어요. 조금만 기다려 주세요.', '브리핑에 넣어 둘게요!'],
     },
     {
-      id: 'seika', name: '세이카', rank: 6, title: '리서치·모니터링', color: '#1c8fc4', size: 66, room: 'lounge',
+      id: 'seika', name: '세이카', rank: 6, title: '리서치·모니터링', color: '#1c8fc4', size: 74, room: 'lounge',
       role: '시장과 이슈를 살피고 키워드 알림으로 팀에 먼저 알려 줍니다.',
       quote: '시장 동향 스캔 중입니다.',
       paths: ['M64 12V23', 'M38 37H90'], circle: [64, 72, 25, 14], belly: true,
@@ -252,7 +252,7 @@
   function updateScale() {
     const map = $('#map');
     const w = map.clientWidth || 900;
-    const cs = clamp(w / 980, 0.52, 1.12);
+    const cs = clamp(w / 900, 0.54, 1.12);
     $('.critters').style.setProperty('--cs', cs.toFixed(3));
   }
 
@@ -358,14 +358,17 @@
   }
 
   function tickBubbles() {
-    const order = CHARS.map((c) => c.id);
-    const a = order[state.bubbleIdx % order.length];
-    const b = order[(state.bubbleIdx + 1) % order.length];
-    state.bubbleIdx = (state.bubbleIdx + 2) % order.length;
-    [a, b].forEach((id) => {
-      const c = byId[id];
+    // 서로 다른 방의 두 비서만 말풍선을 띄웁니다 (겹침 방지)
+    const pool = [...CHARS].sort(() => Math.random() - 0.5);
+    const picked = [];
+    pool.forEach((c) => {
+      if (picked.length >= 2) return;
+      if (picked.some((p) => seatOf(p.id).room === seatOf(c.id).room)) return;
+      picked.push(c);
+    });
+    picked.forEach((c) => {
       const line = c.lines[Math.floor(Math.random() * c.lines.length)];
-      setBubble(id, line, false);
+      setBubble(c.id, line, false);
     });
   }
 
