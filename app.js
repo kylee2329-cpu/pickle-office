@@ -158,9 +158,10 @@
 
   /* ---------------- glyphs ---------------- */
   function glyphSVG(c) {
-    const eyes = (c.eyes || []).map(([x, y, r], i) => `
+    const blinkDelay = -((c.id.charCodeAt(0) * 7) % 55) / 10;
+    const eyes = (c.eyes || []).map(([x, y, r]) => `
       <g>
-        <ellipse class="eye" cx="${x}" cy="${y}" rx="${r}" ry="${r * 1.12}" fill="#2b2620" style="--blink:-${(i * 1.7).toFixed(1)}s"/>
+        <ellipse class="eye" cx="${x}" cy="${y}" rx="${r}" ry="${r * 1.12}" fill="#2b2620" style="--blink:${blinkDelay.toFixed(1)}s"/>
         <circle cx="${x + 1.1}" cy="${y - 1.7}" r="${(r * 0.34).toFixed(2)}" fill="#ffffff" opacity=".9"/>
       </g>`).join('');
     const mouth = c.mouth
@@ -182,22 +183,26 @@
 
   /* ---------------- seats & map ---------------- */
   function initSeats() {
-    const saved = readJSON(LS.seats, null);
+    const saved = readJSON(LS.seats, null) || {};
     const seats = {};
     CHARS.forEach((c) => {
-      const s = saved && saved[c.id];
-      if (s && ROOMS[s.room] && Number.isInteger(s.idx)) seats[c.id] = { room: s.room, idx: s.idx };
+      const s = saved[c.id];
+      seats[c.id] = (s && ROOMS[s.room] && Number.isInteger(s.idx))
+        ? { room: s.room, idx: s.idx }
+        : { room: c.room, idx: 0 };
     });
-    // 충돌 정리 + 빈 자리 배정
+    // 같은 방 안의 자리 중복 정리
     CHARS.forEach((c) => {
-      const want = seats[c.id] || { room: c.room, idx: 0 };
+      const room = seats[c.id].room;
       const used = new Set(
-        Object.entries(seats).filter(([id]) => id !== c.id && seats[id].room === want.room).map(([, v]) => v.idx)
+        Object.entries(seats)
+          .filter(([id, v]) => id !== c.id && v.room === room)
+          .map(([, v]) => v.idx)
       );
-      if (!seats[c.id] || used.has(seats[c.id].idx)) {
+      if (used.has(seats[c.id].idx)) {
         let idx = 0;
         while (idx < 6 && used.has(idx)) idx++;
-        seats[c.id] = { room: want.room, idx: idx % 6 };
+        seats[c.id].idx = idx % 6;
       }
     });
     state.seats = seats;
@@ -630,35 +635,38 @@
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       if (!data) return;
-      let added = 0;
+      const added = [];
       const atBottom = isAtBottom();
       Object.entries(data).forEach(([key, v]) => {
         if (!v || typeof v !== 'object' || !v.text) return;
         const id = v.id || key;
         if (state.seenLive.has(id)) return;
         state.seenLive.add(id);
-        state.liveMsgs.push({
+        const msg = {
           id, key,
           author: v.author || 'guest',
           name: v.name || v.author || '게스트',
           room: ROOMS[v.room] ? v.room : 'main',
           text: String(v.text),
           ts: Number(v.ts) || Date.now(),
-        });
-        added++;
+        };
+        state.liveMsgs.push(msg);
+        added.push(msg);
       });
       if (state.liveMsgs.length > 400) state.liveMsgs = state.liveMsgs.slice(-400);
-      if (added) {
+      if (added.length) {
         state.liveMsgs.sort((a, b) => a.ts - b.ts);
-        if (state.tab === 'all') {
-          renderMessages(atBottom);
-          updateBadges();
-        }
+        added.forEach((m) => {
+          if (state.ownIds.has(m.id)) return;
+          if (state.tab !== 'all') state.unread.all++;
+          if (state.tab !== m.room) state.unread[m.room] = (state.unread[m.room] || 0) + 1;
+          if (byId[m.author] && Date.now() - m.ts < 15000) setBubble(m.author, m.text, false);
+        });
+        updateBadges();
+        renderMessages(atBottom);
       }
     } catch (err) {
-      setConnState('error');
-      $('#settingsStatus').textContent = '동기화 실패 · ' + err.message;
-      $('#settingsStatus').className = 'status-line err';
+      toast('동기화가 잠시 멈췄어요 · 연결을 확인해 주세요');
     }
   }
 
@@ -1002,6 +1010,7 @@
       if (document.visibilityState === 'visible' && state.conn === 'live') loadLiveMessages();
     });
 
+    setTimeout(tickBubbles, 1900);
     setInterval(tickBubbles, 7000);
   }
 
