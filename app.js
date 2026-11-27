@@ -373,6 +373,8 @@
     const r = rand(10, 18) * (state.cs || 1);
     const a = rand(0, Math.PI * 2);
     setIdleOffset(id, Math.cos(a) * r, Math.sin(a) * r * 0.62);
+    // 유휴 이동으로 말풍선이 서로 가까워질 수 있어, 떠 있는 말풍선은 자리를 다시 잡습니다.
+    schedulePlaceBubbles();
   }
 
   function pauseIdle() {
@@ -581,9 +583,9 @@
           const inside = r.left >= mapBox.left + 2 && r.right <= mapBox.right - 2
             && r.top >= mapBox.top - 14 && r.bottom <= mapBox.bottom - 2;
           if (!inside) continue;
-          if (own && rectOverlap(r, own.box, 2)) continue;
-          if (faces.some((f) => f.btn !== it.btn && rectOverlap(r, f.box, 2))) continue;
-          if (placed.some((p) => rectOverlap(r, p, 2))) continue;
+          if (own && rectOverlap(r, own.box, 6)) continue;
+          if (faces.some((f) => f.btn !== it.btn && rectOverlap(r, f.box, 6))) continue;
+          if (placed.some((p) => rectOverlap(r, p, 6))) continue;
           chosen = side;
           break;
         }
