@@ -27,9 +27,13 @@
     msgs: 'po.messages.v1',
     seats: 'po.seats.v1',
     fb: 'po.fb.v1',
+    demo: 'po.demo.v1',
     client: 'po.client.v1',
     sender: 'po.sender.v1',
   };
+
+  // 합동 비서실 공용 Realtime Database — 저장된 다른 URL이 없으면 이 주소로 바로 연결합니다.
+  const DEFAULT_FB = 'https://pickle-office-c7e87-default-rtdb.firebaseio.com';
   const readJSON = (key, fallback) => {
     try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
     catch (_) { return fallback; }
@@ -56,6 +60,22 @@
     },
   };
   const ROOM_ORDER = ['main', 'meet', 'work', 'lounge'];
+
+  // /agents/<id>.json 의 status 값
+  const STATUS = {
+    working: { label: '작업 중', icon: '🖥' },
+    meeting: { label: '회의 중', icon: '📋' },
+    idle: { label: '대기', icon: '💤' },
+    resting: { label: '휴식', icon: '☕' },
+  };
+  const defaultStatus = (room) => (room === 'meet' ? 'meeting' : room === 'lounge' ? 'resting' : 'working');
+  // 다른 피클이 쓴 이름도 같은 캐릭터로 받아 줍니다.
+  const AGENT_ALIASES = {
+    kyle: 'kyle', cloie: 'cloie', chloe: 'cloie',
+    aika: 'aika', peika: 'peika',
+    reika: 'reika', leika: 'reika', laika: 'reika',
+    seika: 'seika',
+  };
 
   // 자리 좌표는 SVG 평면도 좌표계(1000 x 640) 기준
   const SLOTS = {
@@ -138,6 +158,10 @@
     liveMsgs: [],
     conn: 'demo',        // demo | live | error
     fb: null,
+    agents: {},
+    agentSig: {},
+    agentBubble: {},
+    agentLocalAt: {},
     online: {},
     unread: { all: 0, meet: 0, work: 0 },
     seenLive: new Set(),
@@ -146,6 +170,14 @@
     pollTimer: null,
     presenceTimer: null,
     presencePollTimer: null,
+    agentPollTimer: null,
+  };
+
+  const agentIdOf = (key) => {
+    const k = String(key == null ? '' : key).trim();
+    if (!k) return null;
+    if (byId[k]) return k;
+    return AGENT_ALIASES[k.toLowerCase()] || null;
   };
   const clientId = (() => {
     let id = localStorage.getItem(LS.client);
@@ -282,6 +314,8 @@
     if (state.selected) {
       const c = byId[state.selected];
       const room = seatOf(c.id).room;
+      const ag = state.conn === 'live' ? (state.agents[c.id] || null) : null;
+      const st = ag && STATUS[ag.status] ? STATUS[ag.status] : null;
       box.innerHTML = `
         <div class="detail-inner" style="--dc:${c.color}">
           <div class="detail-avatar">${glyphSVG(c)}</div>
@@ -290,8 +324,10 @@
               <span class="name">${c.name}</span>
               <span class="rank-chip">${c.rank}순위</span>
               <span class="room-chip">${ROOMS[room].icon} ${ROOMS[room].name}</span>
+              ${st ? `<span class="status-chip">${st.icon} ${st.label}</span>` : ''}
             </div>
             <p class="detail-role"><b>${c.title}</b> · ${c.role}</p>
+            ${ag && ag.task && st ? `<p class="detail-task">“${esc(ag.task)}”</p>` : ''}
             <div class="move-row"><span>이동</span>
               ${ROOM_ORDER.map((r) => `<button class="move-btn${r === room ? ' is-here' : ''}" type="button" data-move="${c.id}" data-room="${r}">${ROOMS[r].name}</button>`).join('')}
             </div>
@@ -343,7 +379,10 @@
     if (state.selected === id) renderDetail();
     if (!opts.silent) toast(`${c.name} → ${ROOMS[room].name}`);
     setBubble(id, `${ROOMS[room].name}로 이동!`, true);
-    if (state.conn === 'live') pushPresence();
+    if (state.conn === 'live') {
+      pushPresence();
+      pushAgent(id, room);
+    }
   }
 
   /* ---------------- bubbles ---------------- */
@@ -702,6 +741,81 @@
     } catch (_) {}
   }
 
+  /* ---------------- agents (/agents/<id>.json) ---------------- */
+  function applyAgents(data) {
+    const agents = {};
+    const raw = (data && typeof data === 'object') ? data : {};
+    Object.entries(raw).forEach(([key, v]) => {
+      const id = agentIdOf(key);
+      if (!id || !v || typeof v !== 'object') return;
+      agents[id] = {
+        room: ROOMS[v.room] ? v.room : '',
+        status: STATUS[v.status] ? v.status : (v.status ? String(v.status) : ''),
+        task: v.task ? String(v.task).slice(0, 160) : '',
+        updatedAt: Number(v.updatedAt) || 0,
+      };
+    });
+    state.agents = agents;
+
+    let moved = false;
+    const speak = [];
+    Object.entries(agents).forEach(([id, a]) => {
+      const sig = `${a.room}|${a.status}|${a.task}|${a.updatedAt}`;
+      const prev = state.agentSig[id] || '';
+      if (a.room && seatOf(id).room !== a.room && Date.now() - (state.agentLocalAt[id] || 0) > 4000) {
+        state.seats[id] = { room: a.room, idx: freeSlot(a.room, id) };
+        moved = true;
+      }
+      const fresh = !a.updatedAt || Date.now() - a.updatedAt < 6 * 60000;
+      if (a.task && a.task !== state.agentBubble[id] && (sig !== prev || prev === '') && fresh) {
+        speak.push({ id, task: a.task, updatedAt: a.updatedAt });
+        state.agentBubble[id] = a.task;
+      }
+      state.agentSig[id] = sig;
+    });
+
+    if (moved) {
+      writeJSON(LS.seats, state.seats);
+      updateCritterPositions();
+      renderLegend();
+      renderCharBar();
+      if (state.selected) renderDetail();
+    }
+    speak.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 2).forEach((s) => setBubble(s.id, s.task, true));
+  }
+
+  async function loadAgents() {
+    if (!state.fb) return;
+    if (state.conn !== 'live') return;
+    try {
+      const res = await fetch(`${state.fb}/agents.json?print=silent`, { cache: 'no-store' });
+      if (!res.ok) return;
+      applyAgents(await res.json());
+    } catch (_) {}
+  }
+
+  async function pushAgent(id, room) {
+    if (!state.fb || state.conn !== 'live') return;
+    const payload = {
+      room,
+      status: defaultStatus(room),
+      task: `${ROOMS[room].name}로 이동했어요`,
+      updatedAt: Date.now(),
+    };
+    // 다음 폴링에서 같은 값이 되돌아와도 말풍선을 다시 띄우지 않도록 먼저 기록해 둡니다.
+    state.agents[id] = payload;
+    state.agentSig[id] = `${payload.room}|${payload.status}|${payload.task}|${payload.updatedAt}`;
+    state.agentBubble[id] = payload.task;
+    state.agentLocalAt[id] = Date.now();
+    try {
+      await fetch(`${state.fb}/agents/${encodeURIComponent(id)}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch (_) {}
+  }
+
   function startSync() {
     stopSync();
     state.pollTimer = setInterval(() => {
@@ -709,15 +823,20 @@
     }, 3000);
     pushPresence();
     pollPresence();
+    loadAgents();
     state.presenceTimer = setInterval(pushPresence, 15000);
     state.presencePollTimer = setInterval(pollPresence, 10000);
+    state.agentPollTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') loadAgents();
+    }, 3000);
   }
 
   function stopSync() {
     clearInterval(state.pollTimer);
     clearInterval(state.presenceTimer);
     clearInterval(state.presencePollTimer);
-    state.pollTimer = state.presenceTimer = state.presencePollTimer = null;
+    clearInterval(state.agentPollTimer);
+    state.pollTimer = state.presenceTimer = state.presencePollTimer = state.agentPollTimer = null;
   }
 
   async function connectLive(rawUrl, opts = {}) {
@@ -736,11 +855,20 @@
     state.fb = base;
     state.liveMsgs = [];
     state.seenLive = new Set();
-    try { localStorage.setItem(LS.fb, base); } catch (_) {}
+    state.agents = {};
+    state.agentSig = {};
+    state.agentBubble = {};
+    try {
+      // 기본 공용 DB는 "기본값"으로 두고, 직접 지정한 URL만 저장합니다.
+      if (base === DEFAULT_FB) localStorage.removeItem(LS.fb);
+      else localStorage.setItem(LS.fb, base);
+      localStorage.removeItem(LS.demo);
+    } catch (_) {}
     setConnState('live');
     setStatus('ok', result.reason);
     refreshShareLink();
     await loadLiveMessages();
+    await loadAgents();
     renderMessages();
     startSync();
     if (!opts.quiet) { toast('실시간 DB에 연결했어요'); closeModal(); }
@@ -752,8 +880,14 @@
     state.fb = null;
     state.liveMsgs = [];
     state.seenLive = new Set();
+    state.agents = {};
+    state.agentSig = {};
+    state.agentBubble = {};
     state.online = {};
-    try { localStorage.removeItem(LS.fb); } catch (_) {}
+    try {
+      localStorage.removeItem(LS.fb);
+      localStorage.setItem(LS.demo, '1');
+    } catch (_) {}
     setConnState('demo');
     setStatus('', '로컬 데모 모드로 돌아왔습니다.');
     refreshShareLink();
@@ -997,10 +1131,11 @@
 
     $('#chatLive').innerHTML = '<span class="dot" aria-hidden="true"></span>이 브라우저에 저장';
 
-    // 해시 또는 저장된 URL로 자동 연결
+    // 해시 > 직접 저장한 URL > 기본 공용 DB 순으로 자동 연결 (데모 모드를 고른 적이 있으면 데모 유지)
     const hash = location.hash.match(/fb=([^&]+)/);
     const saved = localStorage.getItem(LS.fb);
-    const target = hash ? decodeURIComponent(hash[1]) : saved;
+    const demoChosen = localStorage.getItem(LS.demo) === '1';
+    const target = hash ? decodeURIComponent(hash[1]) : (saved || (demoChosen ? '' : DEFAULT_FB));
     if (target) {
       $('#fbUrl').value = target;
       refreshShareLink();
@@ -1010,7 +1145,10 @@
     }
 
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && state.conn === 'live') loadLiveMessages();
+      if (document.visibilityState === 'visible' && state.conn === 'live') {
+        loadLiveMessages();
+        loadAgents();
+      }
     });
 
     setTimeout(tickBubbles, 1900);

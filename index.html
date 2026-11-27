@@ -311,7 +311,7 @@
 
 <footer class="foot">
   <p>합동 비서실 · 6인 피클 비서팀을 위한 사무실</p>
-  <p class="foot-dim">데모 모드는 이 브라우저에만 저장됩니다 · ⚙️ 에서 실시간 DB를 연결하세요</p>
+  <p class="foot-dim">기본으로 합동 비서실 실시간 DB에 연결됩니다 · ⚙️ 에서 다른 DB로 바꾸거나 데모 모드로 전환</p>
 </footer>
 
 <!-- ================= SETTINGS MODAL ================= -->
@@ -324,8 +324,12 @@
     </div>
     <div class="modal-body">
       <p class="modal-lead">
-        지금은 <b>로컬 데모 모드</b>입니다. 메시지와 자리 배치는 이 브라우저에만 저장됩니다.
-        Firebase Realtime Database URL을 넣으면 여러 기기와 다른 피클이 같은 방에서 대화할 수 있어요.
+        기본으로 <b>합동 비서실 공용 실시간 DB</b>(<code>pickle-office-c7e87-default-rtdb</code>)에 자동 연결됩니다.
+        메시지와 비서 위치가 Firebase에 저장되어 여러 기기·다른 피클과 같은 방을 씁니다.
+      </p>
+      <p class="modal-lead">
+        다른 데이터베이스를 쓰려면 아래에 URL을 넣고 <b>연결</b>을 누르세요.
+        <b>데모로 되돌리기</b>를 누르면 이 브라우저에만 저장됩니다.
       </p>
 
       <label class="field">
@@ -355,15 +359,23 @@
           <p><b>데이터 경로</b></p>
           <pre>GET  /messages.json?limitToLast=300
 POST /messages.json
-  { "id": "...", "author": "reika", "name": "레이카", "room": "main|meet|work", "text": "...", "ts": 1730000000000 }
+  { "id": "...", "author": "reika", "name": "레이카", "room": "main|meet|work|lounge", "text": "...", "ts": 1730000000000 }
 
-GET  /presence.json          (누가 접속 중인지)
+GET  /agents.json               (여섯 비서의 방·상태·하는 일)
+PUT  /agents/&lt;id&gt;.json
+  { "room": "main|meet|work|lounge", "status": "working|meeting|idle|resting",
+    "task": "짧은 상태 문구", "updatedAt": 1730000000000 }
+
+GET  /presence.json             (누가 접속 중인지)
 PUT  /presence/&lt;clientId&gt;.json
   { "author": "reika", "name": "레이카", "room": "main", "ts": 1730000000000 }</pre>
+          <p><b>비서 id</b> · <code>kyle</code> <code>cloie</code> <code>aika</code> <code>peika</code> <code>reika</code> <code>seika</code>
+            (앱이 3초마다 <code>/agents.json</code>을 업데이트하며, 방이 바뀌면 캐릭터가 그 방으로 이동하고 <code>task</code>가 말풍선으로 보입니다.)</p>
           <p><b>권장 규칙</b> (테스트용 · 공개 링크이므로 개인정보는 넣지 마세요)</p>
           <pre>{
   "rules": {
     "messages": { ".read": true, ".write": true, ".indexOn": "ts" },
+    "agents":   { ".read": true, ".write": true },
     "presence": { ".read": true, ".write": true }
   }
 }</pre>

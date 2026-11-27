@@ -518,6 +518,18 @@ button { cursor: pointer; }
   padding: 3px 9px; border-radius: 999px;
   background: var(--panel); border: 1px solid var(--line); color: var(--ink-2);
 }
+.status-chip {
+  font-size: 11px; font-weight: 800;
+  padding: 3px 9px; border-radius: 999px;
+  background: color-mix(in srgb, var(--dc) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--dc) 34%, transparent);
+  color: var(--dc);
+}
+.detail-task {
+  margin-top: 6px; font-family: "Gowun Dodum", sans-serif;
+  font-size: 12.5px; color: var(--ink-2);
+  padding-left: 10px; border-left: 2px solid color-mix(in srgb, var(--dc) 40%, transparent);
+}
 .detail-role { margin-top: 5px; font-size: 12.5px; color: var(--ink-2); }
 .detail-quote {
   margin-top: 8px; font-family: "Gowun Dodum", sans-serif;
