@@ -60,7 +60,7 @@
   // 자리 좌표는 SVG 평면도 좌표계(1000 x 640) 기준
   const SLOTS = {
     main: [[120, 218], [240, 218], [356, 218], [150, 290], [268, 290], [378, 290]],
-    meet: [[542, 206], [890, 206], [690, 124], [790, 124], [690, 296], [790, 296]],
+    meet: [[542, 206], [856, 206], [690, 124], [790, 124], [690, 296], [790, 296]],
     work: [[290, 478], [190, 478], [368, 470], [240, 552], [330, 552], [152, 530]],
     lounge: [[600, 548], [712, 556], [792, 548], [556, 470], [884, 472], [770, 452]],
   };
@@ -472,7 +472,7 @@
 
     if (!isOwn && !opts.silent) {
       if (state.tab !== 'all') state.unread.all++;
-      if (state.tab !== msg.room) state.unread[msg.room] = (state.unread[msg.room] || 0) + 1;
+      if (state.tab !== 'all' && state.tab !== msg.room) state.unread[msg.room] = (state.unread[msg.room] || 0) + 1;
       updateBadges();
       if (byId[msg.author] && Date.now() - msg.ts < 12000) setBubble(msg.author, msg.text, false);
     }
@@ -662,7 +662,7 @@
         added.forEach((m) => {
           if (state.ownIds.has(m.id)) return;
           if (state.tab !== 'all') state.unread.all++;
-          if (state.tab !== m.room) state.unread[m.room] = (state.unread[m.room] || 0) + 1;
+          if (state.tab !== 'all' && state.tab !== m.room) state.unread[m.room] = (state.unread[m.room] || 0) + 1;
           if (byId[m.author] && Date.now() - m.ts < 15000) setBubble(m.author, m.text, false);
         });
         updateBadges();
