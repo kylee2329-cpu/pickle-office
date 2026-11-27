@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>합동 비서실 · Shared Pickle Office</title>
+<meta name="description" content="6인 피클 합동 비서실 — 사무실 지도에서 비서를 만나고, 방을 옮기고, @멘션으로 대화하세요." />
+<meta name="theme-color" content="#f7f4ee" />
+<meta property="og:title" content="합동 비서실 · Shared Pickle Office" />
+<meta property="og:description" content="6인 비서팀의 사무실 지도와 채팅. 지도에서 비서를 눌러 역할을 보고 방을 옮겨 보세요." />
+<meta property="og:type" content="website" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%237048e8'/%3E%3Cpath d='M20 16h24v32H20z' fill='none' stroke='%23fff' stroke-width='5' stroke-linejoin='round'/%3E%3Cpath d='M20 32h24' stroke='%23fff' stroke-width='5'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<a class="skip" href="#chat">채팅으로 건너뛰기</a>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">🏢</span>
+    <div class="brand-text">
+      <h1>합동 비서실</h1>
+      <p>Shared Pickle Office · 6인 비서팀</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <button id="connPill" class="pill" type="button" title="실시간 DB 연결 상태">
+      <span class="dot" aria-hidden="true"></span><span id="connLabel">데모 모드</span>
+    </button>
+    <button id="openSettings" class="icon-btn" type="button" aria-label="⚙️ 실시간 DB 연결 설정" title="실시간 DB 연결">
+      <span aria-hidden="true">⚙️</span>
+    </button>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- ================= OFFICE MAP ================= -->
+  <section class="stage-card" aria-labelledby="stageTitle">
+    <div class="stage-head">
+      <h2 id="stageTitle">사무실 지도</h2>
+      <p class="stage-hint" id="stageHint">비서를 눌러 역할을 보고, 방을 눌러 이동시키세요.</p>
+    </div>
+
+    <div class="map" id="map">
+      <svg class="floorplan" viewBox="0 0 1000 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+        <defs>
+          <filter id="drop" x="-40%" y="-40%" width="180%" height="180%">
+            <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#3a2f22" flood-opacity="0.20" />
+          </filter>
+          <filter id="dropS" x="-40%" y="-40%" width="180%" height="180%">
+            <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#3a2f22" flood-opacity="0.16" />
+          </filter>
+          <linearGradient id="screenGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#6a82a0" />
+            <stop offset="1" stop-color="#32465c" />
+          </linearGradient>
+          <linearGradient id="woodGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#e3c49b" />
+            <stop offset="1" stop-color="#d3b184" />
+          </linearGradient>
+          <radialGradient id="lampGlow" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0" stop-color="#ffdf9e" stop-opacity="0.95" />
+            <stop offset="1" stop-color="#ffdf9e" stop-opacity="0" />
+          </radialGradient>
+        </defs>
+
+        <!-- floor -->
+        <rect class="floor" x="10" y="10" width="980" height="620" rx="34" />
+        <rect class="floor-rug" x="26" y="26" width="948" height="588" rx="26" />
+
+        <!-- rooms -->
+        <rect class="room room-main" x="40" y="40" width="400" height="300" rx="22" />
+        <rect class="room room-meet" x="470" y="40" width="490" height="300" rx="22" />
+        <rect class="room room-work" x="40" y="370" width="400" height="230" rx="22" />
+        <rect class="room room-lounge" x="470" y="370" width="490" height="230" rx="22" />
+
+        <!-- ===== MAIN OFFICE ===== -->
+        <g class="furniture">
+          <!-- rug -->
+          <ellipse class="rug" cx="240" cy="238" rx="160" ry="66" />
+          <!-- desks -->
+          <g filter="url(#dropS)">
+            <rect class="desk" x="78" y="86" width="112" height="40" rx="7" />
+            <rect class="desk" x="200" y="86" width="112" height="40" rx="7" />
+            <rect class="desk" x="322" y="86" width="100" height="40" rx="7" />
+          </g>
+          <g class="monitor">
+            <rect x="96" y="62" width="60" height="26" rx="4" />
+            <rect x="218" y="62" width="60" height="26" rx="4" />
+            <rect x="338" y="62" width="56" height="26" rx="4" />
+          </g>
+          <rect class="screen-in" x="99" y="65" width="54" height="20" rx="2" />
+          <rect class="screen-in" x="221" y="65" width="54" height="20" rx="2" />
+          <rect class="screen-in" x="341" y="65" width="50" height="20" rx="2" />
+          <g class="chair">
+            <rect x="110" y="130" width="42" height="26" rx="10" />
+            <rect x="232" y="130" width="42" height="26" rx="10" />
+            <rect x="350" y="130" width="38" height="26" rx="10" />
+          </g>
+          <!-- wall clock -->
+          <circle class="clock" cx="404" cy="78" r="15" />
+          <path class="clock-hand" d="M404 78V68M404 78h8" />
+          <!-- plants -->
+          <g class="plant">
+            <ellipse cx="72" cy="318" rx="16" ry="9" />
+            <path d="M72 316c0-18-10-26-16-30 4 14 8 22 16 30Z" />
+            <path d="M72 316c0-18 10-26 16-30-4 14-8 22-16 30Z" />
+            <path d="M72 316c0-14 0-24 0-32" />
+          </g>
+          <g class="plant">
+            <ellipse cx="414" cy="318" rx="16" ry="9" />
+            <path d="M414 316c0-18-10-26-16-30 4 14 8 22 16 30Z" />
+            <path d="M414 316c0-18 10-26 16-30-4 14-8 22-16 30Z" />
+          </g>
+        </g>
+
+        <!-- ===== MEETING ROOM ===== -->
+        <g class="furniture">
+          <rect class="rug rug-meet" x="560" y="118" width="300" height="180" rx="20" />
+          <!-- screen on wall -->
+          <rect class="screen-bar" x="668" y="52" width="116" height="12" rx="4" />
+          <rect class="screen-in" x="671" y="55" width="110" height="6" rx="2" />
+          <!-- table -->
+          <g filter="url(#dropS)">
+            <rect class="table" x="600" y="162" width="240" height="100" rx="44" />
+            <rect class="table-top" x="612" y="172" width="216" height="80" rx="36" />
+          </g>
+          <!-- cups -->
+          <circle class="cup" cx="648" cy="200" r="7" />
+          <circle class="cup" cx="676" cy="200" r="7" />
+          <g class="chair">
+            <rect x="566" y="178" width="26" height="30" rx="10" />
+            <rect x="566" y="220" width="26" height="30" rx="10" />
+            <rect x="848" y="178" width="26" height="30" rx="10" />
+            <rect x="848" y="220" width="26" height="30" rx="10" />
+            <rect x="648" y="132" width="34" height="24" rx="10" />
+            <rect x="758" y="132" width="34" height="24" rx="10" />
+            <rect x="648" y="270" width="34" height="24" rx="10" />
+            <rect x="758" y="270" width="34" height="24" rx="10" />
+          </g>
+          <g class="plant">
+            <ellipse cx="926" cy="312" rx="18" ry="10" />
+            <path d="M926 310c0-20-12-28-18-34 5 16 10 25 18 34Z" />
+            <path d="M926 310c0-20 12-28 18-34-5 16-10 25-18 34Z" />
+          </g>
+          <g class="plant">
+            <ellipse cx="504" cy="312" rx="16" ry="9" />
+            <path d="M504 310c0-18-10-26-16-30 4 14 8 22 16 30Z" />
+            <path d="M504 310c0-18 10-26 16-30-4 14-8 22-16 30Z" />
+          </g>
+        </g>
+
+        <!-- ===== WORKSTATION ===== -->
+        <g class="furniture">
+          <!-- bench -->
+          <g filter="url(#dropS)">
+            <rect class="desk" x="148" y="404" width="232" height="42" rx="7" />
+          </g>
+          <g class="monitor">
+            <rect x="170" y="386" width="72" height="24" rx="4" />
+            <rect x="262" y="386" width="72" height="24" rx="4" />
+          </g>
+          <rect class="screen-in" x="173" y="389" width="66" height="18" rx="2" />
+          <rect class="screen-in" x="265" y="389" width="66" height="18" rx="2" />
+          <!-- shelf -->
+          <rect class="shelf" x="394" y="404" width="30" height="132" rx="6" />
+          <rect class="shelf-line" x="398" y="432" width="22" height="4" rx="2" />
+          <rect class="shelf-line" x="398" y="470" width="22" height="4" rx="2" />
+          <rect class="shelf-line" x="398" y="508" width="22" height="4" rx="2" />
+          <!-- 3d printer -->
+          <g filter="url(#dropS)">
+            <rect class="printer" x="62" y="492" width="60" height="58" rx="8" />
+            <rect class="printer-window" x="70" y="502" width="44" height="30" rx="4" />
+          </g>
+          <circle class="printer-dot" cx="92" cy="540" r="3.5" />
+          <!-- crates -->
+          <rect class="crate" x="148" y="524" width="42" height="34" rx="5" />
+          <rect class="crate" x="196" y="532" width="30" height="26" rx="5" />
+          <g class="plant">
+            <ellipse cx="410" cy="578" rx="14" ry="8" />
+            <path d="M410 576c0-16-9-22-14-26 4 12 7 19 14 26Z" />
+            <path d="M410 576c0-16 9-22 14-26-4 12-7 19-14 26Z" />
+          </g>
+        </g>
+
+        <!-- ===== LOUNGE ===== -->
+        <g class="furniture">
+          <ellipse class="rug rug-lounge" cx="712" cy="500" rx="176" ry="76" />
+          <!-- sofa -->
+          <g filter="url(#dropS)">
+            <rect class="sofa-back" x="534" y="414" width="158" height="34" rx="14" />
+            <rect class="sofa" x="528" y="436" width="170" height="56" rx="16" />
+          </g>
+          <path class="sofa-line" d="M614 440v48" />
+          <!-- armchair -->
+          <g filter="url(#dropS)">
+            <rect class="sofa-back" x="812" y="438" width="62" height="26" rx="12" />
+            <rect class="sofa" x="806" y="456" width="74" height="52" rx="16" />
+          </g>
+          <!-- coffee table -->
+          <ellipse class="table-top-2" cx="704" cy="500" rx="56" ry="26" />
+          <circle class="cup" cx="692" cy="496" r="7" />
+          <rect class="book" x="712" y="492" width="26" height="10" rx="2" />
+          <!-- floor lamp -->
+          <path class="lamp-pole" d="M930 452v-40" />
+          <circle class="lamp-glow" cx="930" cy="404" r="42" />
+          <path class="lamp-shade" d="M912 404h36l-8-18h-20Z" />
+          <!-- art / tv -->
+          <rect class="screen-bar" x="866" y="388" width="66" height="10" rx="3" />
+          <g class="plant">
+            <ellipse cx="502" cy="566" rx="16" ry="9" />
+            <path d="M502 564c0-20-11-28-17-32 5 15 9 24 17 32Z" />
+            <path d="M502 564c0-20 11-28 17-32-5 15-9 24-17 32Z" />
+            <path d="M502 564c0-14 0-22 0-30" />
+          </g>
+          <g class="plant">
+            <ellipse cx="926" cy="566" rx="14" ry="8" />
+            <path d="M926 564c0-16-9-22-14-26 4 12 7 19 14 26Z" />
+            <path d="M926 564c0-16 9-22 14-26-4 12-7 19-14 26Z" />
+          </g>
+        </g>
+
+        <!-- room labels -->
+        <g class="labels" aria-hidden="true">
+          <g class="room-label-group">
+            <rect class="label-bg" x="56" y="54" width="132" height="34" rx="12" />
+            <text class="room-label" x="70" y="76">메인 오피스</text>
+          </g>
+          <g class="room-label-group">
+            <rect class="label-bg" x="486" y="54" width="112" height="34" rx="12" />
+            <text class="room-label" x="500" y="76">회의실</text>
+          </g>
+          <g class="room-label-group">
+            <rect class="label-bg" x="56" y="384" width="100" height="34" rx="12" />
+            <text class="room-label" x="70" y="406">작업실</text>
+          </g>
+          <g class="room-label-group">
+            <rect class="label-bg" x="486" y="384" width="88" height="34" rx="12" />
+            <text class="room-label" x="500" y="406">라운지</text>
+          </g>
+        </g>
+
+        <!-- clickable room zones -->
+        <g class="room-hits">
+          <rect class="room-hit" data-room="main" x="40" y="40" width="400" height="300" rx="22" />
+          <rect class="room-hit" data-room="meet" x="470" y="40" width="490" height="300" rx="22" />
+          <rect class="room-hit" data-room="work" x="40" y="370" width="400" height="230" rx="22" />
+          <rect class="room-hit" data-room="lounge" x="470" y="370" width="490" height="230" rx="22" />
+        </g>
+      </svg>
+
+      <div class="critters" id="critters" aria-label="비서 캐릭터"></div>
+    </div>
+
+    <div class="map-legend" id="mapLegend" aria-label="방 목록"></div>
+
+    <div class="detail" id="detail" hidden></div>
+
+    <div class="char-bar" id="charBar" aria-label="비서 목록"></div>
+  </section>
+
+  <!-- ================= CHAT ================= -->
+  <section class="chat-card" id="chat" aria-labelledby="chatTitle">
+    <div class="chat-head">
+      <div>
+        <h2 id="chatTitle">비서실 채팅</h2>
+        <p class="chat-sub" id="chatSub">@이름 으로 특정 비서를 부를 수 있어요.</p>
+      </div>
+      <span class="chat-live" id="chatLive"><span class="dot" aria-hidden="true"></span>기록 중</span>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="채팅 채널">
+      <button class="tab is-active" role="tab" aria-selected="true" data-tab="all">#전체<span class="badge" hidden></span></button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="meet">#회의실<span class="badge" hidden></span></button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="work">#작업실<span class="badge" hidden></span></button>
+    </div>
+
+    <div class="messages" id="messages" role="log" aria-live="polite" aria-label="메시지 목록"></div>
+    <div class="typing" id="typing" hidden>
+      <span class="typing-avatar"></span>
+      <span class="typing-text">입력 중</span>
+      <span class="dots"><i></i><i></i><i></i></span>
+    </div>
+
+    <div class="mention-row" id="mentionRow" aria-label="멘션 빠른 입력"></div>
+
+    <form class="composer" id="composer" autocomplete="off">
+      <label class="sender-wrap" title="보내는 비서">
+        <span class="sr-only">보내는 비서</span>
+        <select id="sender" aria-label="보내는 비서"></select>
+      </label>
+      <div class="input-wrap">
+        <textarea id="input" rows="1" placeholder="메시지 입력 · @레이카 처럼 멘션" aria-label="메시지 입력" maxlength="500"></textarea>
+      </div>
+      <button class="send" type="submit" aria-label="보내기">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12 2-12 2z" fill="currentColor"/></svg>
+      </button>
+    </form>
+  </section>
+</main>
+
+<footer class="foot">
+  <p>합동 비서실 · 6인 피클 비서팀을 위한 사무실</p>
+  <p class="foot-dim">데모 모드는 이 브라우저에만 저장됩니다 · ⚙️ 에서 실시간 DB를 연결하세요</p>
+</footer>
+
+<!-- ================= SETTINGS MODAL ================= -->
+<div class="modal" id="settingsModal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal-head">
+      <h2 id="settingsTitle">⚙️ 실시간 DB 연결</h2>
+      <button class="icon-btn" type="button" data-close aria-label="닫기">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-lead">
+        지금은 <b>로컬 데모 모드</b>입니다. 메시지와 자리 배치는 이 브라우저에만 저장됩니다.
+        Firebase Realtime Database URL을 넣으면 여러 기기와 다른 피클이 같은 방에서 대화할 수 있어요.
+      </p>
+
+      <label class="field">
+        <span class="field-label">Realtime Database URL</span>
+        <input id="fbUrl" type="url" inputmode="url" spellcheck="false"
+               placeholder="https://&lt;project&gt;-default-rtdb.firebaseio.com" />
+      </label>
+
+      <div class="btn-row">
+        <button id="btnTest" class="btn ghost" type="button">연결 테스트</button>
+        <button id="btnConnect" class="btn primary" type="button">연결</button>
+        <button id="btnDemo" class="btn quiet" type="button">데모로 되돌리기</button>
+      </div>
+      <p class="status-line" id="settingsStatus" role="status">대기 중</p>
+
+      <div class="share-box">
+        <span class="field-label">공유 링크 (URL 해시로 자동 연결)</span>
+        <div class="share-row">
+          <input id="shareLink" type="text" readonly value="" aria-label="공유 링크" />
+          <button id="btnCopy" class="btn ghost" type="button">복사</button>
+        </div>
+      </div>
+
+      <details class="help">
+        <summary>다른 피클이 연결하는 방법 · 데이터 구조</summary>
+        <div class="help-body">
+          <p><b>데이터 경로</b></p>
+          <pre>GET  /messages.json?limitToLast=300
+POST /messages.json
+  { "id": "...", "author": "reika", "name": "레이카", "room": "main|meet|work", "text": "...", "ts": 1730000000000 }
+
+GET  /presence.json          (누가 접속 중인지)
+PUT  /presence/&lt;clientId&gt;.json
+  { "author": "reika", "name": "레이카", "room": "main", "ts": 1730000000000 }</pre>
+          <p><b>권장 규칙</b> (테스트용 · 공개 링크이므로 개인정보는 넣지 마세요)</p>
+          <pre>{
+  "rules": {
+    "messages": { ".read": true, ".write": true, ".indexOn": "ts" },
+    "presence": { ".read": true, ".write": true }
+  }
+}</pre>
+          <p class="hint">같은 URL을 <code>#fb=&lt;인코딩된 URL&gt;</code> 로 붙이면 링크만으로 연결됩니다. 연결 후 3초마다 새 메시지를 가져옵니다.</p>
+        </div>
+      </details>
+
+      <div class="modal-foot">
+        <button id="btnReset" class="btn quiet small" type="button">데모 대화 초기화</button>
+        <span class="modal-note">이 페이지에는 개인정보를 저장하지 않습니다.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
