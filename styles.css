@@ -722,6 +722,109 @@ button { cursor: pointer; }
 .msg.is-mine .text { border-color: color-mix(in srgb, var(--ac) 35%, var(--line-2)); }
 .msg .sys { font-size: 11.5px; color: var(--ink-3); background: none; border: 0; padding: 2px 0; }
 
+/* ---- 답글(인용) ---- */
+
+/* 말풍선 옆 답글 버튼: PC는 마우스 hover·키보드 포커스에서, 터치 기기는 항상 보이게 */
+.msg-reply {
+  flex: none;
+  align-self: flex-start;
+  margin-top: 17px;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink-3);
+  font-size: 10.5px; font-weight: 800; line-height: 1;
+  white-space: nowrap;
+  opacity: 0; transform: translateX(-3px); pointer-events: none;
+  transition: opacity .15s, transform .15s, color .15s, border-color .15s, background .15s;
+}
+.msg:hover .msg-reply,
+.msg:focus-within .msg-reply { opacity: 1; transform: none; pointer-events: auto; }
+.msg-reply:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.msg-reply:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* 인용 블록 (말풍선 상단) */
+.reply-quote {
+  display: flex; align-items: baseline; gap: 7px;
+  width: fit-content; max-width: 100%;
+  margin: 0 0 4px;
+  padding: 5px 10px;
+  border: 1px solid var(--line-2);
+  border-left: 3px solid color-mix(in srgb, var(--qc, var(--accent)) 70%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--qc, var(--accent)) 6%, var(--panel-2));
+  font: inherit;
+  font-size: 11.5px; line-height: 1.35;
+  color: var(--ink-2);
+  text-align: left;
+  cursor: default;
+  overflow: hidden;
+}
+.reply-quote .rq-who { flex: none; font-size: 10.5px; font-weight: 900; color: var(--qc, var(--accent)); }
+.reply-quote .rq-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .9; }
+.reply-quote.is-link { cursor: pointer; transition: border-color .15s, background .15s; }
+.reply-quote.is-link:hover { background: color-mix(in srgb, var(--qc, var(--accent)) 13%, var(--panel-2)); }
+.reply-quote.is-link:focus-visible { outline: 2px solid var(--qc, var(--accent)); outline-offset: 2px; }
+
+/* 답글 대상으로 고른 메시지 / 원문으로 이동했을 때 잠깐 하이라이트 */
+.msg.is-reply-src .text { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); }
+.msg.is-flash { border-radius: 12px; animation: msgflash 2s ease-out; }
+@keyframes msgflash {
+  0% {
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+  70% {
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 7%, transparent);
+  }
+  100% { background: transparent; box-shadow: 0 0 0 0 transparent; }
+}
+
+/* 입력창 위 답글 대상 미리보기 바 */
+.reply-bar {
+  display: flex; align-items: center; gap: 9px;
+  margin: 0 12px 4px;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line-2));
+  border-radius: 12px;
+  background: var(--accent-soft);
+  animation: rise .18s ease-out;
+}
+.reply-bar .rb-ico {
+  flex: none;
+  display: grid; place-items: center;
+  width: 24px; height: 24px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 15%, var(--panel));
+  color: var(--accent);
+}
+.reply-bar .rb-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.reply-bar .rb-who { font-size: 10.5px; font-weight: 800; color: var(--accent); }
+.reply-bar .rb-who b { font-weight: 900; }
+.reply-bar .rb-text {
+  font-size: 11.5px; color: var(--ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.reply-bar .rb-cancel {
+  flex: none;
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 8px;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 12px; font-weight: 900;
+  transition: background .15s, color .15s;
+}
+.reply-bar .rb-cancel:hover { background: var(--panel); color: var(--danger); }
+
+/* 터치 기기: hover가 없어도 답글 버튼이 바로 보입니다 */
+@media (hover: none) {
+  .msg-reply { opacity: .92; transform: none; pointer-events: auto; }
+}
+
 .typing {
   display: flex; align-items: center; gap: 7px;
   padding: 4px 18px 8px;
@@ -1004,6 +1107,10 @@ button { cursor: pointer; }
   .chat-card { border-radius: 22px; }
   .messages { min-height: 300px; max-height: 56vh; padding: 12px 12px 4px; }
   .msg .text { font-size: 12.5px; }
+  .msg-reply { margin-top: 15px; padding: 4px 8px; opacity: .9; transform: none; pointer-events: auto; }
+  .msg-reply .lbl { display: none; }
+  .reply-quote { font-size: 11px; padding: 4px 9px; }
+  .reply-bar { margin: 0 8px 4px; }
   .chat-head { padding: 14px 14px 8px; }
   .tabs { padding: 0 10px 8px; }
   .mention-row { padding: 8px 12px 6px; }

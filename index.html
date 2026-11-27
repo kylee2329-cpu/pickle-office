@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles.css?v=20261127e" />
+<link rel="stylesheet" href="styles.css?v=20261128a" />
 </head>
 <body>
 <a class="skip" href="#chat">채팅으로 건너뛰기</a>
@@ -294,6 +294,20 @@
 
     <div class="mention-row" id="mentionRow" aria-label="멘션 빠른 입력 (전체·비서별)"></div>
 
+    <div class="reply-bar" id="replyBar" hidden aria-live="polite">
+      <span class="rb-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="15" height="15" focusable="false">
+          <path d="M9 6 4 11l5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 11h9a6 6 0 0 1 6 6v1" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="rb-main">
+        <span class="rb-who"><b id="replyWho"></b>에게 답글</span>
+        <span class="rb-text" id="replyText"></span>
+      </span>
+      <button class="rb-cancel" id="replyCancel" type="button" aria-label="답글 취소" title="답글 취소 (Esc)">✕</button>
+    </div>
+
     <form class="composer" id="composer" autocomplete="off">
       <label class="sender-wrap" title="보내는 사람">
         <span class="sr-only">보내는 사람</span>
@@ -359,7 +373,9 @@
           <p><b>데이터 경로</b></p>
           <pre>GET  /messages.json?orderBy=%22%24key%22&limitToLast=300
 POST /messages.json
-  { "id": "...", "author": "reika", "name": "레이카", "room": "main|meet|work|lounge", "text": "...", "ts": 1730000000000 }
+  { "id": "...", "author": "reika", "name": "레이카", "room": "main|meet|work|lounge", "text": "...", "ts": 1730000000000,
+    "replyTo": { "key": "-Nxxx", "id": "...", "author": "kyle", "name": "KYLE", "text": "원문 요약(80자 내외)" } }
+  (replyTo는 답글일 때만 붙는 선택 필드입니다. 없으면 일반 메시지로 읽으면 됩니다.)
 
 GET  /agents.json               (여섯 비서의 방·상태·하는 일)
 PUT  /agents/&lt;id&gt;.json
@@ -392,6 +408,6 @@ PUT  /presence/&lt;clientId&gt;.json
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-<script src="app.js?v=20261127e"></script>
+<script src="app.js?v=20261128a"></script>
 </body>
 </html>

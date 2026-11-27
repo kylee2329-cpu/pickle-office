@@ -13,6 +13,12 @@
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
   ));
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  // 답글(인용)에 싣는 원문 요약 길이 — 80자 내외
+  const SUMMARY_LEN = 80;
+  const summarize = (s) => {
+    const one = String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+    return one.length > SUMMARY_LEN ? one.slice(0, SUMMARY_LEN - 1).trimEnd() + '…' : one;
+  };
   const timeHM = (ts) => new Date(ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
   const dayKey = (ts) => new Date(ts).toDateString();
   const dayLabel = (ts) => {
@@ -175,6 +181,8 @@
     unread: { all: 0, meet: 0, work: 0 },
     seenLive: new Set(),
     ownIds: new Set(),
+    renderedKeys: new Set(),
+    replyTo: null,
     bubbleIdx: 0,
     pollTimer: null,
     presenceTimer: null,
@@ -463,6 +471,115 @@
     </svg>`;
   }
 
+  /* ---------------- reply (답글·인용) ---------------- */
+  // 다른 피클이 보낸 replyTo를 읽을 때 쓰는 안전한 정규화 — 없거나 깨져 있으면 null
+  function normReply(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    const text = summarize(raw.text);
+    const author = raw.author ? String(raw.author).slice(0, 40) : '';
+    const name = raw.name ? String(raw.name).slice(0, 40) : '';
+    const key = raw.key ? String(raw.key).slice(0, 120) : '';
+    const id = raw.id ? String(raw.id).slice(0, 80) : '';
+    if (!text && !author && !name) return null;
+    return { key, id, author, name, text };
+  }
+
+  // 보내는 메시지에 실을 답글 대상 (기존 6필드 + replyTo만 추가해 하위 호환 유지)
+  function replyTargetFor(m) {
+    const c = byId[m.author];
+    const name = c ? c.name
+      : m.author === OWNER.id ? (m.name || OWNER.name)
+        : (m.name || m.author || '게스트');
+    return {
+      key: m.key ? String(m.key) : '',
+      id: m.id ? String(m.id) : '',
+      author: m.author ? String(m.author) : '',
+      name,
+      text: summarize(m.text),
+    };
+  }
+
+  function isRendered(rt) {
+    const keys = state.renderedKeys;
+    if (!keys) return false;
+    if (rt.key && keys.has('k:' + rt.key)) return true;
+    if (rt.id && keys.has('i:' + rt.id)) return true;
+    return false;
+  }
+
+  function replyQuoteHTML(rt) {
+    const c = byId[rt.author];
+    const qc = c ? c.color : (rt.author === OWNER.id ? OWNER.color : '#8a8173');
+    const who = rt.name || rt.author || '알 수 없는 메시지';
+    const inner = `<span class="rq-who">${esc(who)}</span><span class="rq-text">${esc(rt.text || '원문 미리보기 없음')}</span>`;
+    if (!isRendered(rt)) {
+      return `<div class="reply-quote" style="--qc:${qc}" title="원문 메시지를 이 화면에서 찾을 수 없어요">${inner}</div>`;
+    }
+    return `<button class="reply-quote is-link" type="button" style="--qc:${qc}"
+      data-quote-key="${esc(rt.key)}" data-quote-id="${esc(rt.id)}"
+      title="원문 메시지로 이동" aria-label="${esc(who)} 원문 메시지로 이동">${inner}</button>`;
+  }
+
+  function replyIcon() {
+    return `<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" focusable="false">
+        <path d="M9 6 4 11l5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M4 11h9a6 6 0 0 1 6 6v1" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>`;
+  }
+
+  function renderReplyBar() {
+    const bar = $('#replyBar');
+    if (!bar) return;
+    const rt = state.replyTo;
+    bar.hidden = !rt;
+    if (!rt) {
+      $('#replyWho').textContent = '';
+      $('#replyText').textContent = '';
+      return;
+    }
+    $('#replyWho').textContent = rt.name || rt.author || '메시지';
+    $('#replyText').textContent = rt.text || '원문 미리보기 없음';
+  }
+
+  function setReplyTarget(m) {
+    if (!m) return;
+    state.replyTo = replyTargetFor(m);
+    $$('.msg.is-reply-src').forEach((el) => el.classList.remove('is-reply-src'));
+    const box = $('#messages');
+    const el = (m.key && box.querySelector(`[data-key="${CSS.escape(String(m.key))}"]`))
+      || box.querySelector(`[data-mid="${CSS.escape(String(m.id))}"]`);
+    if (el) el.classList.add('is-reply-src');
+    renderReplyBar();
+    const input = $('#input');
+    input.focus();
+    const n = input.value.length;
+    try { input.setSelectionRange(n, n); } catch (_) {}
+    const composer = $('#composer');
+    if (window.innerWidth <= 720 && composer) composer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function clearReplyTarget(opts = {}) {
+    if (!state.replyTo) return;
+    state.replyTo = null;
+    $$('.msg.is-reply-src').forEach((el) => el.classList.remove('is-reply-src'));
+    renderReplyBar();
+    if (!opts.silent) $('#input').focus();
+  }
+
+  function revealMessage(key, id) {
+    const box = $('#messages');
+    let el = null;
+    if (key) el = box.querySelector(`[data-key="${CSS.escape(String(key))}"]`);
+    if (!el && id) el = box.querySelector(`[data-mid="${CSS.escape(String(id))}"]`);
+    if (!el) { toast('원문 메시지를 이 화면에서 찾을 수 없어요'); return; }
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.remove('is-flash');
+    void el.offsetWidth; // 애니메이션 재시작
+    el.classList.add('is-flash');
+    clearTimeout(el._flash);
+    el._flash = setTimeout(() => el.classList.remove('is-flash'), 2000);
+  }
+
   function msgHTML(m) {
     const c = byId[m.author];
     const isOwner = !c && m.author === OWNER.id;
@@ -475,7 +592,8 @@
         : `<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="${color}" opacity=".22"/><text x="20" y="26" text-anchor="middle" font-size="17" font-weight="900" fill="${color}">${esc(name.slice(0, 1))}</text></svg>`;
     const roomTag = state.tab === 'all' && m.room && ROOMS[m.room]
       ? `<span class="room-tag">${ROOMS[m.room].name}</span>` : '';
-    return `<article class="msg${isOwner ? ' is-owner' : ''}" data-mid="${esc(m.id)}" style="--ac:${color}">
+    const rt = normReply(m.replyTo);
+    return `<article class="msg${isOwner ? ' is-owner' : ''}" data-mid="${esc(m.id)}"${m.key ? ` data-key="${esc(m.key)}"` : ''} style="--ac:${color}">
       <div class="avatar">${avatar}</div>
       <div class="msg-body">
         <div class="msg-meta">
@@ -484,8 +602,11 @@
           ${roomTag}
           <time datetime="${new Date(m.ts).toISOString()}">${timeHM(m.ts)}</time>
         </div>
+        ${rt ? replyQuoteHTML(rt) : ''}
         <span class="text">${linkify(m.text)}</span>
       </div>
+      <button class="msg-reply" type="button" data-reply-id="${esc(m.id)}"
+        aria-label="${esc(name)} 메시지에 답글 달기" title="답글">${replyIcon()}<span class="lbl">답글</span></button>
     </article>`;
   }
 
@@ -500,8 +621,17 @@
       box.innerHTML = `<div class="day-divider">아직 메시지가 없어요</div>
         <p style="font-size:12px;color:var(--ink-3);text-align:center;padding:8px 20px 20px;line-height:1.6">
           아래 <b>@전체</b>·<b>@이름</b> 버튼으로 비서를 부르거나, 첫 메시지를 보내 보세요.</p>`;
+      state.renderedKeys = new Set();
       return;
     }
+
+    // 인용 블록이 "원문이 이 화면에 있는지"를 렌더 시점에 판단할 수 있게 모아 둡니다.
+    const renderedKeys = new Set();
+    list.forEach((m) => {
+      if (m.key) renderedKeys.add('k:' + m.key);
+      if (m.id) renderedKeys.add('i:' + m.id);
+    });
+    state.renderedKeys = renderedKeys;
 
     let html = '';
     let lastDay = '';
@@ -514,6 +644,13 @@
       html += msgHTML(m);
     });
     box.innerHTML = html;
+    // 다시 그려지면 클래스가 사라지므로, 답글 대상 표시를 되살립니다.
+    if (state.replyTo) {
+      const rt = state.replyTo;
+      const src = (rt.key && box.querySelector(`[data-key="${CSS.escape(String(rt.key))}"]`))
+        || (rt.id && box.querySelector(`[data-mid="${CSS.escape(String(rt.id))}"]`));
+      if (src) src.classList.add('is-reply-src');
+    }
     if (scroll) box.scrollTop = box.scrollHeight;
   }
 
@@ -637,8 +774,11 @@
     const sender = senderOf(state.sender) || OWNER;
     const room = currentRoomForSend(sender);
     const msg = { id: uid(), author: sender.id, name: sender.name, room, text, ts: Date.now() };
+    // 답글이면 기존 6개 필드는 그대로 두고 replyTo만 더해 보냅니다 (감시 스크립트 하위 호환).
+    if (state.replyTo) msg.replyTo = { ...state.replyTo, text: summarize(state.replyTo.text) };
     input.value = '';
     input.style.height = 'auto';
+    clearReplyTarget({ silent: true });
     postMessage(msg);
   }
 
@@ -723,6 +863,7 @@
           room: ROOMS[v.room] ? v.room : 'main',
           text: String(v.text),
           ts: Number(v.ts) || Date.now(),
+          replyTo: normReply(v.replyTo),
         };
         state.liveMsgs.push(msg);
         added.push(msg);
@@ -1071,11 +1212,32 @@
       input.style.height = Math.min(input.scrollHeight, 120) + 'px';
     });
     input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && state.replyTo) {
+        e.preventDefault();
+        clearReplyTarget();
+        return;
+      }
       if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
         e.preventDefault();
         sendFromInput();
       }
     });
+
+    // 말풍선 맨 위의 답글 버튼 · 인용 블록 클릭 (메시지 목록은 다시 그려지지만 리스너는 컨테이너에 둡니다)
+    $('#messages').addEventListener('click', (e) => {
+      const quote = e.target.closest('[data-quote-key], [data-quote-id]');
+      if (quote) {
+        revealMessage(quote.dataset.quoteKey, quote.dataset.quoteId);
+        return;
+      }
+      const btn = e.target.closest('[data-reply-id]');
+      if (btn) {
+        const target = currentMsgs().find((m) => String(m.id) === String(btn.dataset.replyId));
+        if (target) setReplyTarget(target);
+      }
+    });
+
+    $('#replyCancel').addEventListener('click', () => clearReplyTarget());
 
     $('#composer').addEventListener('submit', (e) => {
       e.preventDefault();
