@@ -929,7 +929,6 @@ button { cursor: pointer; }
   .layout { grid-template-columns: minmax(0, 1fr); }
   .chat-card { height: auto; min-height: 0; }
   .messages { min-height: 340px; max-height: 52vh; }
-  .char-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 720px) {
@@ -942,12 +941,27 @@ button { cursor: pointer; }
   .stage-head { padding-bottom: 8px; }
   .stage-hint { font-size: 11px; width: 100%; }
   .map { border-radius: 16px; }
-  .map-legend { gap: 6px; padding-top: 10px; }
-  .legend-item { padding: 6px 10px; font-size: 11px; }
-  .char-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .char-chip { padding: 7px; gap: 6px; border-radius: 12px; }
-  .char-chip .mini { width: 22px; }
-  .char-chip .nm { font-size: 10.5px; }
+  .map-legend {
+    gap: 6px; padding-top: 10px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .map-legend::-webkit-scrollbar { display: none; }
+  .legend-item { flex: none; padding: 6px 10px; font-size: 11px; }
+  .char-bar {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+  .char-bar::-webkit-scrollbar { display: none; }
+  .char-chip { flex: none; padding: 7px 9px; gap: 6px; border-radius: 12px; }
+  .char-chip .mini { width: 24px; }
+  .char-chip .nm { font-size: 11px; }
   .char-chip .rm { font-size: 9.5px; }
   .detail { padding: 12px; border-radius: 18px; }
   .detail-avatar { width: 52px; }
@@ -968,7 +982,6 @@ button { cursor: pointer; }
 }
 
 @media (max-width: 400px) {
-  .char-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .brand-text p { display: none; }
 }
 
