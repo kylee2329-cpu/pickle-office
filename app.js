@@ -50,25 +50,26 @@
   const writeJSON = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch (_) {} };
 
   /* ---------------- data ---------------- */
+  // 2026-11-28: 3D 세미리얼 사무실(assets/office-bg.png)에 맞춰 3개 존으로 정리했습니다.
+  // 예전 'lounge' 값(예전 저장값·다른 비서 앱)은 메인 라운지(main)로 합쳐 읽습니다.
+  const ROOM_ALIASES = { main: 'main', meet: 'meet', work: 'work', lounge: 'main' };
+  const normRoom = (r) => ROOM_ALIASES[String(r == null ? '' : r).trim()] || 'main';
+
   const ROOMS = {
     main: {
-      name: '메인 오피스', en: 'MAIN OFFICE', icon: '🗂', color: '#5c6b8a',
-      desc: '여섯 비서가 하루 업무를 나누고 서로의 상태를 확인하는 중심 공간이에요.',
+      name: '메인 라운지', en: 'MAIN LOUNGE', icon: '☕', color: '#b07a45',
+      desc: '소파와 커피, 실내 퍼팅·테니스로 잠깐 쉬어 가는 라운지예요. 여섯 비서가 하루 업무를 나누는 중심 공간이기도 해요.',
     },
     meet: {
       name: '회의실', en: 'MEETING ROOM', icon: '📋', color: '#7a5aa8',
-      desc: '안건을 모아 결정하는 방. 큰 테이블과 스크린이 있어요.',
+      desc: '유리 파티션 너머 긴 테이블에서 안건을 모아 결정하는 방이에요.',
     },
     work: {
       name: '작업실', en: 'WORKSTATION', icon: '🖥', color: '#2f7d6c',
       desc: '모니터와 장비를 두고 실제 작업을 처리하는 실행 공간이에요.',
     },
-    lounge: {
-      name: '라운지', en: 'LOUNGE', icon: '☕', color: '#a9773f',
-      desc: '소파와 커피, 잠깐 숨을 고르는 자리예요.',
-    },
   };
-  const ROOM_ORDER = ['main', 'meet', 'work', 'lounge'];
+  const ROOM_ORDER = ['main', 'meet', 'work'];
 
   // /agents/<id>.json 의 status 값
   const STATUS = {
@@ -77,7 +78,8 @@
     idle: { label: '대기', icon: '💤' },
     resting: { label: '휴식', icon: '☕' },
   };
-  const defaultStatus = (room) => (room === 'meet' ? 'meeting' : room === 'lounge' ? 'resting' : 'working');
+  // 메인 라운지는 쉬어 가는 자리라 기본 상태를 '대기(idle)'로 둡니다.
+  const defaultStatus = (room) => (room === 'meet' ? 'meeting' : room === 'work' ? 'working' : 'idle');
   // 다른 피클이 쓴 이름도 같은 캐릭터로 받아 줍니다.
   const AGENT_ALIASES = {
     kyle: 'kyle', cloie: 'cloie', chloe: 'cloie',
@@ -86,12 +88,16 @@
     seika: 'seika',
   };
 
-  // 자리 좌표는 SVG 평면도 좌표계(1000 x 640) 기준
+  // 자리 좌표는 office-bg.png(1402 x 1122) 픽셀 기준 — 세미리얼 사무실의 가구 위치에 맞춘 여섯 자리입니다.
+  const MAP_W = 1402;
+  const MAP_H = 1122;
   const SLOTS = {
-    main: [[120, 218], [240, 218], [356, 218], [150, 290], [268, 290], [378, 290]],
-    meet: [[542, 206], [856, 206], [690, 124], [790, 124], [690, 296], [790, 296]],
-    work: [[290, 478], [190, 478], [368, 470], [240, 552], [330, 552], [152, 530]],
-    lounge: [[600, 548], [712, 556], [792, 548], [556, 470], [884, 472], [770, 452]],
+    // 소파 위·소파 옆 넓은 바닥·러그·아래쪽 바닥에 고르게 분산(6명이 모두 모여도 서로 겹치지 않게)
+    main: [[330, 280], [525, 350], [415, 470], [525, 660], [455, 830], [250, 845]],
+    // 긴 회의 테이블 둘레(위 3, 왼쪽 끝, 오른쪽 끝, 앞쪽)
+    meet: [[700, 160], [860, 150], [1020, 160], [675, 315], [1095, 300], [775, 370]],
+    // 워크스테이션 의자 3 + 아래쪽 바닥 3
+    work: [[760, 755], [920, 755], [1080, 755], [720, 885], [880, 885], [1040, 885]],
   };
 
   const CHARS = [
@@ -140,7 +146,7 @@
       replies: ['네, 확인하고 바로 정리해서 올릴게요.', '에그만 쪽은 제가 보고 있어요. 조금만 기다려 주세요.', '브리핑에 넣어 둘게요!'],
     },
     {
-      id: 'seika', name: '세이카', rank: 6, title: '리서치·모니터링', color: '#1c8fc4', size: 74, room: 'lounge',
+      id: 'seika', name: '세이카', rank: 6, title: '리서치·모니터링', color: '#1c8fc4', size: 74, room: 'main',
       role: '시장과 이슈를 살피고 키워드 알림으로 팀에 먼저 알려 줍니다.',
       quote: '시장 동향 스캔 중입니다.',
       paths: ['M64 12V23', 'M38 37H90'], circle: [64, 72, 25, 14], belly: true,
@@ -248,9 +254,10 @@
     const seats = {};
     CHARS.forEach((c) => {
       const s = saved[c.id];
-      seats[c.id] = (s && ROOMS[s.room] && Number.isInteger(s.idx))
-        ? { room: s.room, idx: s.idx }
-        : { room: c.room, idx: 0 };
+      const room = s ? normRoom(s.room) : '';
+      seats[c.id] = (s && ROOMS[room] && Number.isInteger(s.idx))
+        ? { room, idx: s.idx }
+        : { room: normRoom(c.room), idx: 0 };
     });
     // 같은 방 안의 자리 중복 정리
     CHARS.forEach((c) => {
@@ -272,7 +279,7 @@
   function seatPos(id) {
     const s = seatOf(id);
     const [x, y] = SLOTS[s.room][s.idx % 6];
-    return { x: +(x / 10).toFixed(2), y: +(y / 6.4).toFixed(2) };
+    return { x: +((x / MAP_W) * 100).toFixed(2), y: +((y / MAP_H) * 100).toFixed(2) };
   }
 
   function freeSlot(room, exceptId) {
@@ -309,16 +316,20 @@
       btn.style.setProperty('--y', p.y + '%');
       btn.setAttribute('aria-label', `${c.name} 비서 ${c.rank}순위, ${ROOMS[seatOf(c.id).room].name}, 역할 보기`);
       // 실제 방 이동이 오면 유휴 오프셋을 즉시 지우고 새 자리에서 다시 시작합니다.
-      if (moved) resetIdle(c.id);
+      if (moved) {
+        resetIdle(c.id);
+        setTimeout(schedulePlaceBubbles, 900);
+      }
     });
   }
 
   function updateScale() {
     const map = $('#map');
     const w = map.clientWidth || 900;
-    const cs = clamp(w / 900, 0.54, 1.12);
+    const cs = clamp(w / 1020, 0.3, 1);
     state.cs = cs;
     $('.critters').style.setProperty('--cs', cs.toFixed(3));
+    schedulePlaceBubbles();
   }
 
   /* ---------------- idle motion (자리 안에서의 미세 이동) ---------------- */
@@ -479,6 +490,10 @@
     if (state.selected === id) renderDetail();
     if (!opts.silent) toast(`${c.name} → ${ROOMS[room].name}`);
     setBubble(id, `${ROOMS[room].name}로 이동!`, true);
+    // 라운지에 도착하면 커피·퍼팅·테니스 같은 휴식 대사를 살짝 이어서
+    if (room === 'main') {
+      setTimeout(() => { if (seatOf(id).room === 'main') setBubble(id, pickLoungeLine(), false); }, 5200);
+    }
     if (state.conn === 'live') {
       pushPresence();
       pushAgent(id, room);
@@ -486,18 +501,103 @@
   }
 
   /* ---------------- bubbles ---------------- */
+  // 메인 라운지에서 대기(idle·resting) 중인 비서가 띄우는 재치 있는 휴식 문구
+  const LOUNGE_LINES = [
+    '아이스 아메리카노 한 잔 마시며 대기 중 ☕',
+    '실내 퍼팅 연습 중 ⛳',
+    '잠깐 테니스 치며 리프레시 중 🎾',
+    '소파에서 5분 충전 중 🔋',
+    '라운지에서 스트레칭 중 🧘',
+    '커피 향 맡으며 다음 업무 정리 중 ☕',
+    '퍼팅 3홀째, 집중력 충전 ⛳',
+    '테니스 랠리 10번, 기분 좋아요 🎾',
+    '라운지 차 한 잔에 생각 정리 중 🍵',
+  ];
+  const pickLoungeLine = () => LOUNGE_LINES[Math.floor(Math.random() * LOUNGE_LINES.length)];
+
   const bubbleUntil = {};
   function setBubble(id, text, force) {
     const el = $(`[data-bubble="${id}"]`);
     if (!el) return;
     el.textContent = text;
     el.classList.add('is-on');
+    schedulePlaceBubbles();
     clearTimeout(el._t);
-    el._t = setTimeout(() => el.classList.remove('is-on'), force ? 4200 : 6000);
+    el._t = setTimeout(() => {
+      el.classList.remove('is-on');
+      schedulePlaceBubbles();
+    }, force ? 4600 : 6500);
+  }
+
+  /* 말풍선 자동 배치 — 위/아래/오른쪽/왼쪽 중 얼굴·다른 말풍선·지도 밖을 피하는 자리를 골라,
+     여섯 명이 동시에 말해도 서로 가리지 않게 합니다. */
+  const BUBBLE_SIDES = ['up', 'down', 'right', 'left'];
+  const rectOverlap = (a, b, m = 0) => (
+    a.left < b.right - m && a.right > b.left + m && a.top < b.bottom - m && a.bottom > b.top + m
+  );
+  let bubbleRaf = 0;
+  function schedulePlaceBubbles() {
+    if (bubbleRaf) cancelAnimationFrame(bubbleRaf);
+    bubbleRaf = requestAnimationFrame(() => { bubbleRaf = 0; placeBubbles(); });
+  }
+  function bubbleActive(btn) {
+    const b = btn.querySelector('.bubble');
+    if (!b) return false;
+    return b.classList.contains('is-on')
+      || btn.classList.contains('is-selected')
+      || btn.matches(':hover, :focus-visible');
+  }
+  function placeBubbles() {
+    const map = $('#map');
+    if (!map) return;
+    const mapBox = map.getBoundingClientRect();
+    if (!mapBox.width) return;
+    const items = $$('.critter').map((btn) => ({
+      btn,
+      bubble: btn.querySelector('.bubble'),
+      body: btn.querySelector('.body'),
+      box: btn.getBoundingClientRect(),
+    })).filter((it) => it.bubble);
+    const faces = items.map((it) => ({ btn: it.btn, box: (it.body || it.btn).getBoundingClientRect() }));
+    const placed = [];
+    // 위쪽부터 차례로 놓아 자리가 안정적으로 보이게 합니다.
+    items.filter((it) => bubbleActive(it.btn))
+      .sort((a, b) => a.box.top - b.box.top)
+      .forEach((it) => {
+        const bub = it.bubble;
+        if (!bub.offsetWidth) { bub.dataset.side = 'up'; return; }
+        const own = faces.find((f) => f.btn === it.btn);
+        let chosen = '';
+        for (const side of BUBBLE_SIDES) {
+          bub.dataset.side = side;
+          const r = bub.getBoundingClientRect();
+          if (!r.width) continue;
+          const inside = r.left >= mapBox.left + 2 && r.right <= mapBox.right - 2
+            && r.top >= mapBox.top - 14 && r.bottom <= mapBox.bottom - 2;
+          if (!inside) continue;
+          if (own && rectOverlap(r, own.box, 2)) continue;
+          if (faces.some((f) => f.btn !== it.btn && rectOverlap(r, f.box, 2))) continue;
+          if (placed.some((p) => rectOverlap(r, p, 2))) continue;
+          chosen = side;
+          break;
+        }
+        if (!chosen) chosen = 'up';
+        bub.dataset.side = chosen;
+        placed.push(bub.getBoundingClientRect());
+      });
+  }
+
+  // 방·상태에 어울리는 대사: 라이브 상태(task) > 메인 라운지 휴식 문구 > 기본 대사
+  function lineFor(c) {
+    const ag = state.conn === 'live' ? state.agents[c.id] : null;
+    if (ag && ag.task) return ag.task;
+    const idleLike = !ag || !ag.status || ag.status === 'idle' || ag.status === 'resting';
+    if (seatOf(c.id).room === 'main' && idleLike && Math.random() < 0.75) return pickLoungeLine();
+    return c.lines[Math.floor(Math.random() * c.lines.length)];
   }
 
   function tickBubbles() {
-    // 서로 다른 방의 두 비서만 말풍선을 띄웁니다 (겹침 방지)
+    // 서로 다른 방의 비서 두 명이 번갈아 말합니다 (자동 배치가 겹침을 한 번 더 막아 줍니다)
     const pool = [...CHARS].sort(() => Math.random() - 0.5);
     const picked = [];
     pool.forEach((c) => {
@@ -505,12 +605,9 @@
       if (picked.some((p) => seatOf(p.id).room === seatOf(c.id).room)) return;
       picked.push(c);
     });
-    picked.forEach((c) => {
-      const ag = state.conn === 'live' ? state.agents[c.id] : null;
-      const line = (ag && ag.task) || c.lines[Math.floor(Math.random() * c.lines.length)];
-      setBubble(c.id, line, false);
-    });
+    picked.forEach((c) => setBubble(c.id, lineFor(c), false));
   }
+
 
   /* ---------------- legend / char bar ---------------- */
   function renderLegend() {
@@ -1115,7 +1212,7 @@
           id, key,
           author: v.author || 'guest',
           name: v.name || v.author || '게스트',
-          room: ROOMS[v.room] ? v.room : 'main',
+          room: normRoom(v.room),
           text: String(v.text),
           ts: Number(v.ts) || Date.now(),
           replyTo: normReply(v.replyTo),
@@ -1182,7 +1279,7 @@
       const id = agentIdOf(key);
       if (!id || !v || typeof v !== 'object') return;
       agents[id] = {
-        room: ROOMS[v.room] ? v.room : '',
+        room: v.room ? normRoom(v.room) : '',
         status: STATUS[v.status] ? v.status : (v.status ? String(v.status) : ''),
         task: v.task ? String(v.task).slice(0, 160) : '',
         updatedAt: Number(v.updatedAt) || 0,
