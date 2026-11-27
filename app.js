@@ -730,7 +730,7 @@
     const result = await probe(base);
     if (!result.ok) {
       setStatus('err', result.reason);
-      setConnState('error');
+      if (state.conn === 'live') setConnState('error');
       return false;
     }
     state.fb = base;
