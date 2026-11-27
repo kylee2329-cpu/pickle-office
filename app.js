@@ -235,7 +235,7 @@
 
   /* ---------------- semi-realistic face avatars ---------------- */
   // 2026-11-28: SVG 글리프 대신 쓰는 세미리얼 인물 이미지. 로드 실패 시 기존 글리프로 자동 대체됩니다.
-  const AVATAR_V = '20261128g';
+  const AVATAR_V = '20261128i';
   const faceHTML = (c, cls = '') => `<span class="face ${cls}" style="--fc:${c.color}">
       <img class="face-img" src="assets/avatars/${c.id}.png?v=${AVATAR_V}" alt="" width="384" height="384"
         decoding="async" onerror="this.parentNode.classList.add('face-failed')" />
