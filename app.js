@@ -1772,9 +1772,6 @@
     setInterval(tickBubbles, 7000);
   }
 
-  // 검증용 임시 훅(배포 후 제거): 말풍선 자동 배치를 콘솔에서 확인할 때 사용
-  window.__po = { setBubble, schedulePlaceBubbles };
-
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })();
