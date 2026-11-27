@@ -555,7 +555,8 @@
     const n = input.value.length;
     try { input.setSelectionRange(n, n); } catch (_) {}
     const composer = $('#composer');
-    if (window.innerWidth <= 720 && composer) composer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // 모바일: 미리보기 바와 입력창이 한 화면에 다 보이도록 입력창 아래쪽에 맞춥니다.
+    if (window.innerWidth <= 720 && composer) composer.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }
 
   function clearReplyTarget(opts = {}) {
