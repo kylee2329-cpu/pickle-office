@@ -179,6 +179,9 @@
     agentLocalAt: {},
     online: {},
     unread: { all: 0, meet: 0, work: 0 },
+    reads: {},            // /reads/<id> → { lastKey, lastTs, updatedAt }
+    readsSig: '',
+    openReadId: null,     // 읽음 상세 패널을 연 메시지 id
     seenLive: new Set(),
     ownIds: new Set(),
     renderedKeys: new Set(),
@@ -661,6 +664,156 @@
     el._flash = setTimeout(() => el.classList.remove('is-flash'), 2700);
   }
 
+  /* ---------------- 읽음 확인 (read receipts) ---------------- */
+  // 집계 대상은 비서 6인입니다. '대표님'(owner)은 보낸 사람이어도 집계에 넣지 않습니다.
+  const READ_IDS = CHARS.map((c) => c.id);
+  const READ_TOTAL = READ_IDS.length;
+  const READ_NAMES_MAX = 4;   // 배지에 이름을 나열할 최대 인원 (나머지는 '외 N')
+  const PUSH_KEY_MIN = 18;    // Firebase 푸시 키(20자, '-'로 시작) 판별용 최소 길이
+
+  const normReadBy = (raw) => {
+    const out = {};
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+    Object.keys(raw).forEach((k) => {
+      const id = agentIdOf(k);
+      if (id && raw[k]) out[id] = true;
+    });
+    return out;
+  };
+
+  // Firebase 푸시 키는 같은 길이의 '-…' 문자열이라 사전순 비교가 곧 시간순입니다.
+  const pushKeyAfter = (lastKey, key) => {
+    const a = String(lastKey || ''), b = String(key || '');
+    if (!a || !b || a[0] !== '-' || b[0] !== '-') return false;
+    if (a.length < PUSH_KEY_MIN || b.length < PUSH_KEY_MIN) return false;
+    return a >= b;
+  };
+
+  // ① /reads/<id> (lastTs·lastKey) ② /messages/<key>/readBy/<id> ③ 보낸 비서 본인 — 세 가지를 합쳐 판정합니다.
+  function readInfoFor(m) {
+    if (!m) return { read: [], unread: READ_IDS.slice(), count: 0 };
+    const rb = normReadBy(m.readBy);
+    const recs = state.reads || {};
+    const author = agentIdOf(m.author);
+    const read = [];
+    const unread = [];
+    READ_IDS.forEach((id) => {
+      let isRead = false;
+      if (author === id) isRead = true;                       // 내가 보낸 글은 자동 읽음
+      else if (rb[id]) isRead = true;                         // 메시지별 readBy
+      else {
+        const r = recs[id];
+        if (r) {
+          if (r.lastTs && Number(m.ts) && r.lastTs >= Number(m.ts)) isRead = true;
+          else if (pushKeyAfter(r.lastKey, m.key)) isRead = true;
+        }
+      }
+      (isRead ? read : unread).push(id);
+    });
+    return { read, unread, count: read.length };
+  }
+
+  function readNames(list) {
+    const names = list.slice(0, READ_NAMES_MAX).map((id) => (byId[id] ? byId[id].name : id));
+    const rest = list.length - names.length;
+    return rest > 0 ? `${names.join('·')} 외 ${rest}` : names.join('·');
+  }
+
+  function readsBadgeHTML(m, info) {
+    const open = String(state.openReadId || '') === String(m.id);
+    const n = info.count;
+    const cls = ['reads-badge'];
+    if (n === 0) cls.push('is-none');
+    else if (n === READ_TOTAL) cls.push('is-full');
+    const head = n === 0
+      ? '<span class="read-count">미확인</span>'
+      : `<span class="read-count"><span class="rc-tick" aria-hidden="true">✓</span>${n}/${READ_TOTAL} 읽음</span>`;
+    const tail = n === 0
+      ? `<span class="read-names">0/${READ_TOTAL} 읽음</span>`
+      : `<span class="read-names">${esc(readNames(info.read))}</span>`;
+    return `<button class="${cls.join(' ')}" type="button" data-reads-toggle="${esc(m.id)}"
+      aria-expanded="${open ? 'true' : 'false'}" aria-label="읽음 확인 ${n}/${READ_TOTAL} 읽음, 자세히 보기"
+      title="읽음 확인 자세히 보기">${head}${tail}<span class="read-caret" aria-hidden="true">▾</span></button>`;
+  }
+
+  function readsPanelHTML(m, info) {
+    const chip = (id, on) => {
+      const c = byId[id];
+      return `<span class="reads-chip${on ? ' is-read' : ' is-unread'}" style="--rc:${c ? c.color : 'var(--ink-3)'}">
+        <span class="ck" aria-hidden="true">${on ? '✓' : '·'}</span>${esc(c ? c.name : id)}</span>`;
+    };
+    return `<div class="reads-pop" role="group" aria-label="읽음 확인 상세">
+      <p class="reads-pop-row"><span class="rp-label">읽음</span>${
+        info.read.length ? info.read.map((id) => chip(id, true)).join('') : '<span class="rp-empty">아직 없어요</span>'}</p>
+      <p class="reads-pop-row"><span class="rp-label">미확인</span>${
+        info.unread.length ? info.unread.map((id) => chip(id, false)).join('') : '<span class="rp-empty">전원 확인</span>'}</p>
+    </div>`;
+  }
+
+  function readsBlockHTML(m) {
+    if (!m) return '';
+    const info = readInfoFor(m);
+    const open = String(state.openReadId || '') === String(m.id);
+    return `<div class="msg-reads" data-reads-sig="${info.read.join(',')}">${readsBadgeHTML(m, info)}${open ? readsPanelHTML(m, info) : ''}</div>`;
+  }
+
+  // 폴링으로 읽음 정보가 바뀌었을 때, 목록을 다시 그리지 않고 배지만 갱신합니다.
+  function refreshReadBadges() {
+    const box = $('#messages');
+    if (!box) return;
+    const byMid = new Map();
+    currentMsgs().forEach((m) => byMid.set(String(m.id), m));
+    $$('.msg', box).forEach((art) => {
+      const m = byMid.get(art.dataset.mid);
+      const wrap = art.querySelector('.msg-reads');
+      if (!m || !wrap) return;
+      if (wrap.dataset.readsSig === readInfoFor(m).read.join(',')) return;
+      wrap.outerHTML = readsBlockHTML(m);
+    });
+  }
+
+  function toggleReadPop(id) {
+    state.openReadId = String(state.openReadId || '') === String(id) ? null : id;
+    const art = $(`#messages .msg[data-mid="${CSS.escape(String(id))}"]`);
+    const m = currentMsgs().find((x) => String(x.id) === String(id));
+    const wrap = art && art.querySelector('.msg-reads');
+    if (!m || !wrap) return;
+    wrap.outerHTML = readsBlockHTML(m);
+    const fresh = art.querySelector('[data-reads-toggle]');
+    if (fresh) fresh.focus({ preventScroll: true });
+  }
+
+  function closeReadPop() {
+    if (state.openReadId == null) return;
+    toggleReadPop(state.openReadId);
+  }
+
+  // 읽음 표시를 한 번에 더합니다 (데모 모드 시뮬레이션·멘션 응답용).
+  function markRead(msgId, ids) {
+    const list = state.conn === 'live' ? state.liveMsgs : state.demoMsgs;
+    const m = list.find((x) => String(x.id) === String(msgId));
+    if (!m) return;
+    const rb = { ...normReadBy(m.readBy) };
+    let changed = false;
+    ids.forEach((id) => { if (!rb[id]) { rb[id] = true; changed = true; } });
+    if (!changed) return;
+    m.readBy = rb;
+    if (state.conn !== 'live') writeJSON(LS.msgs, state.demoMsgs);
+    refreshReadBadges();
+  }
+
+  // 데모 모드 전용: 방금 보낸 메시지에 비서들이 시간차로 확인하는 모습을 재현합니다.
+  function scheduleDemoReads(msg) {
+    if (state.conn === 'live') return;
+    const mine = agentIdOf(msg.author);
+    const pool = READ_IDS.filter((id) => id !== mine);
+    if (!pool.length) return;
+    const shuffled = pool.slice().sort(() => Math.random() - 0.5);
+    const half = shuffled.slice(0, Math.max(2, Math.ceil(pool.length / 2)));
+    setTimeout(() => markRead(msg.id, half), 2400);
+    setTimeout(() => markRead(msg.id, pool), 5600);
+  }
+
   function msgHTML(m) {
     const c = byId[m.author];
     const isOwner = !c && m.author === OWNER.id;
@@ -685,6 +838,7 @@
         </div>
         ${rt ? replyQuoteHTML(rt) : ''}
         <span class="text">${linkify(m.text)}</span>
+        ${readsBlockHTML(m)}
       </div>
       <button class="msg-reply" type="button" data-reply-id="${esc(m.id)}"
         aria-label="${esc(name)} 메시지에 답글 달기" title="답글">${replyIcon()}<span class="lbl">답글</span></button>
@@ -805,6 +959,7 @@
       return;
     }
     addMessage(msg, { silent: true, scroll: true });
+    scheduleDemoReads(msg);
     scheduleReplies(msg);
   }
 
@@ -844,6 +999,8 @@
           text: line,
           ts: Date.now(),
         });
+        // 응답한 비서는 원문을 읽은 것으로 처리 — 데모에서도 읽음 수가 바로 올라갑니다.
+        markRead(msg.id, [id]);
       }, delay + 1200);
     });
   }
@@ -866,13 +1023,18 @@
   /* ---------------- demo seed ---------------- */
   const T = (minAgo) => Date.now() - minAgo * 60000;
   const SEED = [
-    { author: 'reika', room: 'main', text: '합동 비서실에 오신 걸 환영해요! 지도에서 비서를 눌러 보거나, 아래 @레이카 로 불러 주세요.', ts: T(11) },
-    { author: 'kyle', room: 'main', text: '오늘 우선순위는 재고 확인 → CS 순으로 갑니다.', ts: T(9) },
-    { author: 'cloie', room: 'meet', text: '@레이카 오늘 브리핑은 몇 시에 올라와?', ts: T(7.5) },
+    { author: 'reika', room: 'main', text: '합동 비서실에 오신 걸 환영해요! 지도에서 비서를 눌러 보거나, 아래 @레이카 로 불러 주세요.', ts: T(14), readBy: { kyle: true, cloie: true, aika: true, peika: true, seika: true } },
+    { author: 'owner', room: 'main', text: '오늘은 재고 확인이랑 CS부터 부탁해요.', ts: T(12), readBy: { kyle: true, cloie: true, reika: true } },
+    { author: 'kyle', room: 'main', text: '오늘 우선순위는 재고 확인 → CS 순으로 갑니다.', ts: T(9), readBy: { cloie: true, reika: true } },
+    { author: 'cloie', room: 'meet', text: '@레이카 오늘 브리핑은 몇 시에 올라와?', ts: T(7.5), readBy: { reika: true } },
     { author: 'reika', room: 'meet', text: '09:10에 에그만 데일리 브리핑 올릴게요. 회의실 안건은 제가 모아 둘게요.', ts: T(7) },
-    { author: 'aika', room: 'work', text: '작업실에 캠페인 초안 올려 뒀어요. 한 번 봐 주세요.', ts: T(4) },
+    { author: 'aika', room: 'work', text: '작업실에 캠페인 초안 올려 뒀어요. 한 번 봐 주세요.', ts: T(4), readBy: { kyle: true, cloie: true, peika: true, seika: true, reika: true } },
     { author: 'peika', room: 'work', text: '리포트 자동화 돌려 놨어요. 결과는 곧 정리해서 올릴게요.', ts: T(2) },
-  ].map((m) => ({ id: uid(), name: byId[m.author].name, ...m }));
+  ].map((m) => ({
+    ...m,
+    id: uid(),
+    name: m.author === OWNER.id ? OWNER.name : byId[m.author].name,
+  }));
 
   function seedIfEmpty() {
     const saved = readJSON(LS.msgs, null);
@@ -931,10 +1093,22 @@
       const data = await res.json();
       if (!data) return;
       const added = [];
+      let readsChanged = false;
       const atBottom = isAtBottom();
+      const index = new Map(state.liveMsgs.map((m) => [String(m.id), m]));
       Object.entries(data).forEach(([key, v]) => {
         if (!v || typeof v !== 'object' || !v.text) return;
         const id = v.id || key;
+        const prev = index.get(String(id));
+        if (prev) {
+          // 이미 그린 메시지는 readBy·키만 맞춰 두어, 삭제·재그리기 없이 읽음 표시만 갱신합니다.
+          if (v.readBy) {
+            const rb = normReadBy(v.readBy);
+            if (JSON.stringify(prev.readBy || {}) !== JSON.stringify(rb)) { prev.readBy = rb; readsChanged = true; }
+          }
+          if (!prev.key && key) prev.key = key;
+          return;
+        }
         if (state.seenLive.has(id)) return;
         state.seenLive.add(id);
         const msg = {
@@ -945,8 +1119,10 @@
           text: String(v.text),
           ts: Number(v.ts) || Date.now(),
           replyTo: normReply(v.replyTo),
+          readBy: normReadBy(v.readBy),
         };
         state.liveMsgs.push(msg);
+        index.set(String(id), msg);
         added.push(msg);
       });
       if (state.liveMsgs.length > 400) state.liveMsgs = state.liveMsgs.slice(-400);
@@ -960,6 +1136,8 @@
         });
         updateBadges();
         renderMessages(atBottom);
+      } else if (readsChanged) {
+        refreshReadBadges();
       }
     } catch (err) {
       toast('동기화가 잠시 멈췄어요 · 연결을 확인해 주세요');
@@ -1072,10 +1250,37 @@
     } catch (_) {}
   }
 
+  /* ---------------- reads (/reads/<id>.json) ---------------- */
+  // /reads/<id> = { lastKey, lastTs, updatedAt } — 5분 감시 스크립트가 PUT 한 번으로 갱신합니다.
+  // 없거나 실패해도 앱은 그대로 동작합니다(조용히 무시).
+  async function loadReads() {
+    if (!state.fb || state.conn !== 'live') return;
+    try {
+      const res = await fetch(`${state.fb}/reads.json`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json() || {};
+      const next = {};
+      Object.entries(data).forEach(([key, v]) => {
+        const id = agentIdOf(key);
+        if (!id || !v || typeof v !== 'object') return;
+        next[id] = {
+          lastKey: v.lastKey ? String(v.lastKey) : '',
+          lastTs: Number(v.lastTs) || 0,
+          updatedAt: Number(v.updatedAt) || 0,
+        };
+      });
+      const sig = JSON.stringify(next);
+      if (sig === state.readsSig) return;
+      state.readsSig = sig;
+      state.reads = next;
+      refreshReadBadges();
+    } catch (_) { /* 읽음 정보가 없어도 채팅은 그대로 */ }
+  }
+
   function startSync() {
     stopSync();
     state.pollTimer = setInterval(() => {
-      if (document.visibilityState === 'visible') loadLiveMessages();
+      if (document.visibilityState === 'visible') { loadLiveMessages(); loadReads(); }
     }, 3000);
     pushPresence();
     pollPresence();
@@ -1111,6 +1316,9 @@
     state.fb = base;
     state.liveMsgs = [];
     state.seenLive = new Set();
+    state.reads = {};
+    state.readsSig = '';
+    state.openReadId = null;
     state.agents = {};
     state.agentSig = {};
     state.agentBubble = {};
@@ -1125,6 +1333,7 @@
     refreshShareLink();
     await loadLiveMessages();
     await loadAgents();
+    await loadReads();
     renderMessages();
     startSync();
     if (!opts.quiet) { toast('실시간 DB에 연결했어요'); closeModal(); }
@@ -1136,6 +1345,9 @@
     state.fb = null;
     state.liveMsgs = [];
     state.seenLive = new Set();
+    state.reads = {};
+    state.readsSig = '';
+    state.openReadId = null;
     state.agents = {};
     state.agentSig = {};
     state.agentBubble = {};
@@ -1306,6 +1518,12 @@
 
     // 말풍선 맨 위의 답글 버튼 · 인용 블록 클릭 (메시지 목록은 다시 그려지지만 리스너는 컨테이너에 둡니다)
     $('#messages').addEventListener('click', (e) => {
+      const readsBtn = e.target.closest('[data-reads-toggle]');
+      if (readsBtn) {
+        e.preventDefault();
+        toggleReadPop(readsBtn.dataset.readsToggle);
+        return;
+      }
       const quote = e.target.closest('[data-quote-key], [data-quote-id]');
       if (quote) {
         revealMessage(quote.dataset.quoteKey, quote.dataset.quoteId);
@@ -1326,6 +1544,16 @@
     });
 
     $('#messages').addEventListener('scroll', () => { /* auto-scroll only on render */ }, { passive: true });
+
+    // 읽음 상세 패널: 바깥을 누르거나 Esc를 누르면 눌러서 닫습니다.
+    document.addEventListener('click', (e) => {
+      if (state.openReadId == null) return;
+      if (e.target.closest('[data-reads-toggle], .reads-pop')) return;
+      closeReadPop();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && state.openReadId != null) closeReadPop();
+    });
   }
 
   function insertMention(name) {
@@ -1431,6 +1659,7 @@
       if (document.visibilityState === 'visible' && state.conn === 'live') {
         loadLiveMessages();
         loadAgents();
+        loadReads();
       }
     });
 

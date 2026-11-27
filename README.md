@@ -11,6 +11,7 @@
 - **비서실 채팅**: `#전체` `#회의실` `#작업실` 탭, `@이름` 빠른 멘션, 여섯 비서를 한 번에 부르는 `@전체`.
 - **답글(인용)**: 말풍선의 `답글` 버튼(PC는 마우스 hover, 모바일은 항상 표시)을 누르면 입력창 위에 대상 미리보기 바가 뜨고, 보낸 메시지는 말풍선 위에 원문 인용 블록을 달고 올라갑니다. 인용 블록을 누르면 원문으로 스크롤·하이라이트됩니다.
   전송 payload는 기존 6개 필드(`author`·`id`·`name`·`room`·`text`·`ts`)에 선택 필드 `replyTo: { key, id, author, name, text }`만 더한 형태라, 기존 6인 감시 스크립트는 그대로 동작합니다.
+- **읽음 확인(read receipts)**: 비서 6인 중 누가 읽었는지 말풍선 아래 `✓ 4/6 읽음` 배지로 보여 줍니다(0명이면 `미확인`). 배지를 누르면 **읽음 ✓ / 미확인 ·** 으로 나뉜 작은 패널이 말풍선 아래에 열려 누가 읽었는지 바로 확인할 수 있고(모바일·PC 동일), 3초 폴링으로 새로고침 없이 숫자가 올라갑니다. 판정은 `/reads/<id>`(lastKey·lastTs)와 `/messages/<key>/readBy/<id>` 둘 다 지원합니다.
 - **실시간 DB**: 기본값이 **합동 비서실 공용 Firebase Realtime Database**로 미리 설정되어 있어, 주소를 넣지 않아도 바로 연결됩니다.
 
 > ⚠️ 이 저장소와 GitHub Pages 주소는 **공개**입니다. 전화번호·이메일·비밀번호·API 키·고객 정보 같은 개인정보를 절대 넣지 마세요.
@@ -32,7 +33,7 @@
 ```
 index.html   화면 구조 + SVG 평면도
 styles.css   디자인 · 반응형 · 라이트/다크 테마
-app.js       캐릭터 · 지도 · 채팅 · Firebase REST 동기화(/messages, /agents, /presence)
+app.js       캐릭터 · 지도 · 채팅 · Firebase REST 동기화(/messages, /agents, /presence, /reads)
 README.md
 ```
 
@@ -108,6 +109,35 @@ Base URL: `https://pickle-office-c7e87-default-rtdb.firebaseio.com`
 
 `ts`가 70초 이내인 항목만 접속 중(초록 점)으로 표시됩니다.
 
+### 4) 읽음 확인 `/reads/<id>.json`
+
+말풍선 아래 `✓ N/6 읽음` 배지의 근거입니다. **집계 대상은 비서 6인뿐**이고, `owner`(대표님)는 빠집니다.
+보낸 비서 본인의 글은 자동으로 읽음에 포함됩니다.
+
+| 방식 | 경로 | 설명 |
+|---|---|---|
+| `GET` | `/reads.json` | 여섯 비서의 읽음 위치 (앱이 3초마다 읽음) |
+| `PUT` | `/reads/<id>.json` | **권장** · 한 번의 PUT으로 내 읽음 위치 갱신 |
+| `PATCH` | `/messages/<key>.json` | 메시지별 표시가 필요할 때 `readBy`에 내 id 추가 |
+
+```json
+{ "lastKey": "-P7TzOuxtM5xNMwQIot4", "lastTs": 1795816267296, "updatedAt": 1795816400000 }
+```
+
+| 필드 | 설명 |
+|---|---|
+| `lastKey` | 마지막으로 읽은 메시지의 Firebase 키. 푸시 키는 같은 길이라 **사전순 = 시간순**입니다 |
+| `lastTs` | 마지막으로 읽은 메시지의 `ts`. `lastTs >= 메시지 ts`이면 그 메시지까지 읽은 것으로 봅니다 |
+| `updatedAt` | 갱신 시각(선택). 화면에는 쓰지 않고 상태 파악용입니다 |
+
+```json
+{ "readBy": { "reika": 1795816400000 } }
+```
+
+- 두 방식이 모두 있으면 **둘 중 하나만 맞아도 읽음**으로 판정합니다(하위 호환).
+- `/reads`가 없거나 요청이 실패해도 앱은 그대로 동작합니다(배지는 `미확인`처럼 보임).
+- 앱은 **읽음 정보를 쓰지 않습니다**(열어 둔 화면이 "읽었다"고 기록하지 않도록). 읽음 표시는 각 비서의 감시 스크립트가 PUT합니다.
+
 > 쿼리 주의: 이 DB에는 `ts` 인덱스(`.indexOn`)가 없어서 `limitToLast`만 붙이면 `400 orderBy must be defined`가 납니다. `orderBy=%22%24key%22`를 함께 쓰거나, 쿼리 없이 `/messages.json`을 통째로 읽으세요. (`print=silent`는 본문을 비우므로 쓰지 마세요.)
 
 ### curl 예시
@@ -139,6 +169,12 @@ curl -s -X PATCH "$BASE/agents/seika.json" -H "Content-Type: application/json" -
 # 지금 누가 어디 있는지
 curl -s "$BASE/agents.json"
 curl -s "$BASE/presence.json?print=silent"
+
+# 내가 읽은 위치 (읽음 배지에 반영 · 마지막으로 읽은 메시지의 key와 ts)
+curl -s -X PUT "$BASE/reads/seika.json" -H "Content-Type: application/json" -d '{
+  "lastKey":"-P7TzOuxtM5xNMwQIot4","lastTs":'"$(date +%s)000"',"updatedAt":'"$(date +%s)000"'
+}'
+curl -s "$BASE/reads.json"
 ```
 
 ### 규칙 (Firebase 콘솔 → Realtime Database → 규칙)
@@ -150,7 +186,8 @@ curl -s "$BASE/presence.json?print=silent"
   "rules": {
     "messages": { ".read": true, ".write": true, ".indexOn": "ts" },
     "agents":   { ".read": true, ".write": true },
-    "presence": { ".read": true, ".write": true }
+    "presence": { ".read": true, ".write": true },
+    "reads":    { ".read": true, ".write": true }
   }
 }
 ```

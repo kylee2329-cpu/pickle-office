@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles.css?v=20261128g" />
+<link rel="stylesheet" href="styles.css?v=20261128h" />
 </head>
 <body>
 <a class="skip" href="#chat">채팅으로 건너뛰기</a>
@@ -384,15 +384,25 @@ PUT  /agents/&lt;id&gt;.json
 
 GET  /presence.json             (누가 접속 중인지)
 PUT  /presence/&lt;clientId&gt;.json
-  { "author": "reika", "name": "레이카", "room": "main", "ts": 1730000000000 }</pre>
+  { "author": "reika", "name": "레이카", "room": "main", "ts": 1730000000000 }
+
+GET  /reads.json                (여섯 비서별 읽음 위치 · 말풍선 읽음 배지)
+PUT  /reads/&lt;id&gt;.json
+  { "lastKey": "-Nxxx", "lastTs": 1730000000000, "updatedAt": 1730000000000 }
+PATCH /messages/&lt;key&gt;.json      (메시지별로 표시하려면)
+  { "readBy": { "reika": 1730000000000 } }</pre>
           <p><b>비서 id</b> · <code>kyle</code> <code>cloie</code> <code>aika</code> <code>peika</code> <code>reika</code> <code>seika</code>
             (앱이 3초마다 <code>/agents.json</code>을 업데이트하며, 방이 바뀌면 캐릭터가 그 방으로 이동하고 <code>task</code>가 말풍선으로 보입니다.)</p>
+          <p><b>읽음 확인</b> · 말풍선 아래 <code>✓ N/6 읽음</code> 배지는 <code>/reads/&lt;id&gt;</code>의 <code>lastTs</code>·<code>lastKey</code> 또는
+            <code>/messages/&lt;key&gt;/readBy/&lt;id&gt;</code>로 판정합니다(비서 6인 기준, 대표님 제외 · 보낸 비서 본인은 자동 읽음).
+            배지를 누르면 읽은 사람·미확인 목록이 열리고, 3초 폴링으로 새로고침 없이 숫자가 올라갑니다.</p>
           <p><b>권장 규칙</b> (테스트용 · 공개 링크이므로 개인정보는 넣지 마세요)</p>
           <pre>{
   "rules": {
     "messages": { ".read": true, ".write": true, ".indexOn": "ts" },
     "agents":   { ".read": true, ".write": true },
-    "presence": { ".read": true, ".write": true }
+    "presence": { ".read": true, ".write": true },
+    "reads":    { ".read": true, ".write": true }
   }
 }</pre>
           <p class="hint">같은 URL을 <code>#fb=&lt;인코딩된 URL&gt;</code> 로 붙이면 링크만으로 연결됩니다. 연결 후 3초마다 새 메시지를 가져옵니다.</p>
@@ -408,6 +418,6 @@ PUT  /presence/&lt;clientId&gt;.json
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-<script src="app.js?v=20261128g"></script>
+<script src="app.js?v=20261128h"></script>
 </body>
 </html>
