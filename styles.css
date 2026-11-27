@@ -257,11 +257,11 @@ button { cursor: pointer; }
 
 .map-bg {
   position: absolute; inset: 0;
-  background: url("assets/office-bg.png?v=20261128l") center / cover no-repeat;
+  background: url("assets/office-bg.png?v=20261128m") center / cover no-repeat;
   /* 대부분 브라우저는 가벼운 webp를, 아니면 png를 씁니다 */
   background-image: image-set(
-    url("assets/office-bg.webp?v=20261128l") type("image/webp"),
-    url("assets/office-bg.png?v=20261128l") type("image/png")
+    url("assets/office-bg.webp?v=20261128m") type("image/webp"),
+    url("assets/office-bg.png?v=20261128m") type("image/png")
   );
   background-size: cover;
   background-position: center;
