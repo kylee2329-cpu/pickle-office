@@ -853,9 +853,9 @@ button { cursor: pointer; }
 .reads-chip .ck { font-size: 9px; font-weight: 900; }
 .reads-chip.is-unread {
   border-style: dashed;
-  border-color: var(--line);
+  border-color: color-mix(in srgb, var(--ink-3) 45%, var(--line));
   background: transparent;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 /* ---- 답글(인용) ---- */
