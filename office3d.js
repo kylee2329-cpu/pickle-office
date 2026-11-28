@@ -30,12 +30,12 @@ const PINS = {
 
 /* ---------------- 캐릭터별 머리 모양/소품 ---------------- */
 const LOOKS = {
-  kyle: { hair: 'bob', hairColor: 0x574539, prop: 'clipboard', skin: 0xf3d4bd },
-  cloie: { hair: 'long', hairColor: 0x6b4630, prop: 'tablet', skin: 0xf6dbc6 },
-  aika: { hair: 'ponytail', hairColor: 0x5b4030, prop: 'marker', skin: 0xf1d0b6 },
-  peika: { hair: 'bun', hairColor: 0x7a5334, prop: 'mug', skin: 0xf6d9c0 },
-  reika: { hair: 'wave', hairColor: 0x4e3d33, prop: 'mug', skin: 0xf4d5c0 },
-  seika: { hair: 'high', hairColor: 0x453428, prop: 'phone', skin: 0xf2d2ba },
+  kyle: { hair: 'bob', hairColor: 0x6b5748, prop: 'clipboard', skin: 0xf3d4bd },
+  cloie: { hair: 'long', hairColor: 0x7d5540, prop: 'tablet', skin: 0xf6dbc6 },
+  aika: { hair: 'ponytail', hairColor: 0x6d5040, prop: 'marker', skin: 0xf1d0b6 },
+  peika: { hair: 'bun', hairColor: 0x8a6142, prop: 'mug', skin: 0xf6d9c0 },
+  reika: { hair: 'wave', hairColor: 0x64514a, prop: 'mug', skin: 0xf4d5c0 },
+  seika: { hair: 'high', hairColor: 0x574437, prop: 'phone', skin: 0xf2d2ba },
 };
 
 /* ---------------- 캔버스 텍스처 ---------------- */
@@ -104,16 +104,16 @@ function rugTexture() {
 
 function whiteboardTexture() {
   return canvasTex(512, 320, (g, w, h) => {
-    g.fillStyle = '#fdfcf8';
+    g.fillStyle = '#ffffff';
     g.fillRect(0, 0, w, h);
-    g.strokeStyle = '#d9d3c6';
+    g.strokeStyle = '#cfc7b8';
     g.lineWidth = 3;
     g.strokeRect(4, 4, w - 8, h - 8);
     const inks = ['#3f7fbf', '#c9506f', '#0f9d78', '#e08a1e', '#5b4b8a'];
     for (let i = 0; i < 7; i++) {
       g.strokeStyle = inks[i % inks.length];
-      g.lineWidth = 3.5;
-      g.globalAlpha = 0.75;
+      g.lineWidth = 5;
+      g.globalAlpha = 0.92;
       const y = 46 + i * 34 + rand(-6, 6);
       const x0 = 34 + rand(0, 30);
       g.beginPath(); g.moveTo(x0, y);
@@ -856,8 +856,8 @@ function makeDoll(spec, index) {
   });
 
   // 머리
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.235, 20, 16), skin);
-  head.position.set(0, 1.09, 0);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.252, 20, 16), skin);
+  head.position.set(0, 1.095, 0);
   head.scale.set(1, 1.02, 0.98);
   head.castShadow = true;
   g.add(head);
@@ -865,20 +865,20 @@ function makeDoll(spec, index) {
 
   // 머리카락
   const hair = new THREE.Group();
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.247, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.47), hairMat);
-  cap.position.set(0, 1.1, -0.012);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.262, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.44), hairMat);
+  cap.position.set(0, 1.105, -0.022);
   cap.scale.set(1.03, 1.04, 1.02);
   cap.castShadow = true;
   hair.add(cap);
   // 앞머리
-  const fringe = new THREE.Mesh(new THREE.SphereGeometry(0.243, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.3), hairMat);
-  fringe.position.set(0, 1.12, 0.03);
+  const fringe = new THREE.Mesh(new THREE.SphereGeometry(0.256, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.26), hairMat);
+  fringe.position.set(0, 1.135, 0.02);
   fringe.rotation.x = 0.36;
   fringe.scale.set(1.0, 0.86, 1.0);
   hair.add(fringe);
   // 뒷머리
-  const back = new THREE.Mesh(new THREE.SphereGeometry(0.23, 16, 12), hairMat);
-  back.position.set(0, 1.04, -0.08);
+  const back = new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 12), hairMat);
+  back.position.set(0, 1.05, -0.10);
   back.scale.set(1.0, 1.06, 0.95);
   hair.add(back);
 
@@ -912,22 +912,22 @@ function makeDoll(spec, index) {
   // 얼굴 (눈·볼·입)
   const eyeMat = material(0x2b2620, { roughness: 0.5 });
   [-1, 1].forEach((s) => {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), eyeMat);
-    eye.position.set(s * 0.086, 1.095, 0.239);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), eyeMat);
+    eye.position.set(s * 0.092, 1.105, 0.248);
     eye.scale.set(0.85, 1.1, 0.6);
     g.add(eye);
     const gloss = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-    gloss.position.set(s * 0.086 + 0.01, 1.108, 0.252);
+    gloss.position.set(s * 0.092 + 0.011, 1.118, 0.264);
     g.add(gloss);
   });
   [-1, 1].forEach((s) => {
     const blush = new THREE.Mesh(new THREE.CircleGeometry(0.038, 12), new THREE.MeshBasicMaterial({ color: 0xf3a8ab, transparent: true, opacity: 0.45 }));
-    blush.position.set(s * 0.145, 1.05, 0.216);
+    blush.position.set(s * 0.152, 1.062, 0.228);
     blush.rotation.y = s * 0.4;
     g.add(blush);
   });
   const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.008, 6, 12, Math.PI), new THREE.MeshBasicMaterial({ color: 0xb8656b }));
-  mouth.position.set(0, 1.04, 0.238);
+  mouth.position.set(0, 1.05, 0.246);
   mouth.rotation.set(Math.PI, 0, 0);
   g.add(mouth);
 
@@ -1003,7 +1003,7 @@ function makeDoll(spec, index) {
 
   g.traverse((o) => { if (o.isMesh) o.userData.agentId = spec.id; });
 
-  g.scale.setScalar(1.55);
+  g.scale.setScalar(1.42);
   g.userData = { spec, parts, index };
   return g;
 }
