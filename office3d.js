@@ -890,7 +890,7 @@ function taperEnds(geo, phiStart, phiLength, falloff = 0.55) {
     const f = Math.min(1, dEnd / falloff);
     const k0 = 0.42 + 0.58 * (f * f * (3 - 2 * f));
     // 머리에 닿는 위쪽만 말아 넣고, 아래로 흐르는 끝은 그대로 둡니다.
-    const yf = Math.min(1, Math.max(0, (y + 0.26) / 0.34));
+    const yf = Math.min(1, Math.max(0, (y + 0.02) / 0.16));
     const k = 1 - (1 - k0) * yf;
     pos.setXYZ(i, x * k, y, z * k);
   }
@@ -1161,10 +1161,10 @@ function makeReikaDoll(spec, index) {
   // 뒷머리 커튼 — 어깨까지 흐르는 한 덩어리 실루엣
   const curtainOuter = [
     [0.176, 0.04], [0.181, -0.04], [0.176, -0.12], [0.185, -0.2],
-    [0.176, -0.285], [0.182, -0.355], [0.164, -0.425], [0.138, -0.478],
+    [0.174, -0.285], [0.181, -0.35], [0.158, -0.415], [0.122, -0.462],
   ];
   const curtainInner = [
-    [0.112, -0.478], [0.12, -0.4], [0.138, -0.325], [0.152, -0.25],
+    [0.1, -0.462], [0.112, -0.4], [0.136, -0.325], [0.152, -0.25],
     [0.166, -0.17], [0.172, -0.085], [0.173, 0.04],
   ];
   const curtainGeo = taperEnds(latheProfile([...curtainOuter, ...curtainInner].reverse(), 48, Math.PI / 2, Math.PI), Math.PI / 2, Math.PI, 0.6);
@@ -1222,7 +1222,7 @@ function makeReikaDoll(spec, index) {
     const onSurface = (x, y) => -Math.sqrt(Math.max(0.0006, curtainR(y) ** 2 - x * x)) - 0.005;
     const pts = [
       [x0 * 0.9, 0.06], [x0 * 1.05, -0.05], [x0 * 1.12, -0.16],
-      [x0 * 1.1, -0.27], [x0 * 1.02, -0.37], [x0 * 0.92, -0.46],
+      [x0 * 1.1, -0.27], [x0 * 1.04, -0.355], [x0 * 0.95, -0.43],
     ].map(([x, y]) => [x, y, onSurface(x, y)]);
     const lock = new THREE.Mesh(taperedTube(pts, 0.034, 0.009, 8, 26), i % 2 === 0 ? hairDeepMat : hairMat);
     lock.scale.set(1.2, 1, 0.55);
@@ -1254,7 +1254,8 @@ function makeReikaDoll(spec, index) {
   handle.position.set(0.036, 0.032, 0);
   handle.rotation.y = Math.PI / 2;
   m.add(handle);
-  m.position.set(0.02, -0.256, 0.062);
+  m.position.set(0.038, -0.248, 0.082);
+  m.rotation.set(0.12, 0.35, 0);
   prop.add(m);
   parts.armR.add(prop);
   parts.prop = prop;
