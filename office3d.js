@@ -1441,6 +1441,16 @@ window.PO3D = {
   get ready() { return S.ready; },
   resize,
   resetView() { S.userMoved = false; resetView(); },
+  debug() {
+    return {
+      pos: S.camera.position.toArray().map((n) => +n.toFixed(2)),
+      target: S.controls.target.toArray().map((n) => +n.toFixed(2)),
+      dist: +S.camera.position.distanceTo(S.controls.target).toFixed(2),
+      fov: S.camera.fov,
+      aspect: +S.camera.aspect.toFixed(3),
+      userMoved: !!S.userMoved,
+    };
+  },
   setMotion(on) { S.motion = !!on; },
   setSelected(id) { S.selected = id; },
   setRest(map) {
