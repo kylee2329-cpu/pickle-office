@@ -1864,11 +1864,27 @@ body.app {
 
 .panel-chat { max-width: 1000px; margin: 0 auto; }
 .panel-chat .chat-card {
-  height: clamp(520px, calc(100dvh - 250px), 880px);
+  /* 채팅 기록이 조금만 길어져도 위쪽이 잘리지 않도록 화면 세로 공간을 넉넉히 씁니다. */
+  height: clamp(640px, calc(100dvh - 175px), 1100px);
   border-radius: 26px;
   border-color: #e9dcc6;
   box-shadow: var(--shadow-sm);
 }
+
+/* 카드 안 메시지 영역은 남는 세로 공간을 전부 사용합니다.
+   (예전 .messages 의 min-height / max-height: 52vh·56vh 제한을 덮어씁니다.) */
+.panel-chat .messages {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+/* 머리말·입력창이 세로 공간을 과하게 차지하지 않게 조금 다듬습니다. */
+.panel-chat .chat-head { padding: 12px 18px 8px; }
+.panel-chat .chat-sub { margin-top: 1px; }
+.panel-chat .tabs { padding: 0 14px 8px; }
+.panel-chat .composer { padding: 6px 12px 8px; }
+.panel-chat #input { padding: 8px 12px; }
 
 /* ---------------- 섹션 카드 (작업실·비서현황·메모) ---------------- */
 
@@ -2158,7 +2174,14 @@ body.app {
   .char-bar .char-chip .mini { width: 24px; flex: none; }
   .char-bar .char-chip .meta { flex: 1 1 auto; overflow: hidden; }
 
-  .panel-chat .chat-card { height: calc(100dvh - 210px); min-height: 460px; border-radius: 20px; }
+  /* 모바일: 화면 높이에서 위쪽 머리(앱바·탭)만 뺀 만큼 채팅 카드를 써서 기록이 넓게 보이게 합니다. */
+  .panel-chat .chat-card { height: calc(100dvh - 150px); min-height: 540px; max-height: none; border-radius: 20px; }
+  .panel-chat .chat-head { padding: 10px 14px 6px; }
+  .panel-chat .chat-sub { font-size: 10.5px; }
+  .panel-chat .tabs { padding: 0 10px 6px; }
+  .panel-chat .mention-row { padding: 6px 12px 5px; }
+  .panel-chat .composer { padding: 6px 10px 8px; }
+  .panel-chat #input { padding: 8px 11px; font-size: 12.5px; }
 
   .status-board { grid-template-columns: minmax(0, 1fr); gap: 9px; }
   .status-card { padding: 12px; border-radius: 18px; }
