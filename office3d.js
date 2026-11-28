@@ -1186,8 +1186,7 @@ function makeReikaDoll(spec, index) {
   const bangSpan = Math.PI * 1.05;
   const bangGeo = taperEnds(latheProfile([
     [0, 0.246], [0.062, 0.24], [0.102, 0.222], [0.134, 0.19],
-    [0.156, 0.152], [0.169, 0.112], [0.173, 0.088], [0.169, 0.082],
-    [0.14, 0.09], [0.09, 0.12], [0, 0.14],
+    [0.156, 0.152], [0.169, 0.112], [0.173, 0.088], [0.171, 0.08],
   ], 44, -bangSpan / 2, bangSpan), -bangSpan / 2, bangSpan, 0.45);
   const bang = new THREE.Mesh(bangGeo, hairMat);
   bang.scale.set(1, 1, 0.97);
