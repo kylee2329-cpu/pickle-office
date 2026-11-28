@@ -23,9 +23,9 @@ const ANCHORS = {
 const FOCUS = { work: [-4.90, -6.10], meet: [4.95, -3.75], main: [0.30, 2.90] };
 const DOORS = { work: [-4.60, -0.55], meet: [4.30, -0.55], main: [0.20, 1.40] };
 const PINS = {
-  work: { pos: [-4.90, 2.05, -0.85], label: '🗂 작업실' },
-  meet: { pos: [4.90, 2.35, -0.25], label: '📋 회의실' },
-  main: { pos: [7.90, 2.10, 6.10], label: '☕ 라운지' },
+  work: { pos: [-4.90, 4.05, -1.20], label: '🗂 작업실' },
+  meet: { pos: [5.10, 4.20, -0.40], label: '📋 회의실' },
+  main: { pos: [6.20, 3.60, 6.30], label: '☕ 라운지' },
 };
 
 /* ---------------- 캐릭터별 머리 모양/소품 ---------------- */
@@ -259,6 +259,22 @@ function buildShell(scene) {
   floor.position.set(0, -0.02, 0);
   floor.receiveShadow = true;
   scene.add(floor);
+
+  // 다이너마 아래 부드러운 그림자 (테이블 위에 놓인 미니어처 느낌)
+  const shadowTex = canvasTex(256, 256, (g, w, h) => {
+    const grd = g.createRadialGradient(w / 2, h / 2, 10, w / 2, h / 2, w / 2);
+    grd.addColorStop(0, 'rgba(90, 62, 30, .34)');
+    grd.addColorStop(0.55, 'rgba(90, 62, 30, .16)');
+    grd.addColorStop(1, 'rgba(90, 62, 30, 0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, w, h);
+  });
+  const shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(30, 26), new THREE.MeshBasicMaterial({
+    map: shadowTex, transparent: true, depthWrite: false,
+  }));
+  shadowPlane.rotation.x = -Math.PI / 2;
+  shadowPlane.position.set(0.3, -0.82, 0.4);
+  scene.add(shadowPlane);
 
   // 앞쪽 계단 (미니어처 느낌)
   const step = new THREE.Mesh(rboxGeo(19.2, 0.18, 0.5, 0.08), material(0xc9976a));
@@ -826,7 +842,7 @@ function makeDoll(spec, index) {
   // 팔 (어깨 피벗)
   [-1, 1].forEach((s) => {
     const pivot = new THREE.Group();
-    pivot.position.set(s * 0.235, 0.82, 0);
+    pivot.position.set(s * 0.248, 0.82, 0.01);
     const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.058, 0.2, 4, 8), outfit);
     arm.position.set(0, -0.13, 0);
     arm.castShadow = true;
@@ -849,16 +865,16 @@ function makeDoll(spec, index) {
 
   // 머리카락
   const hair = new THREE.Group();
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.245, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.62), hairMat);
-  cap.position.set(0, 1.1, -0.005);
-  cap.scale.set(1.02, 1.02, 1.03);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.247, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.47), hairMat);
+  cap.position.set(0, 1.1, -0.012);
+  cap.scale.set(1.03, 1.04, 1.02);
   cap.castShadow = true;
   hair.add(cap);
   // 앞머리
-  const fringe = new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.34), hairMat);
-  fringe.position.set(0, 1.13, 0.02);
-  fringe.rotation.x = 0.28;
-  fringe.scale.set(1.0, 0.92, 1.0);
+  const fringe = new THREE.Mesh(new THREE.SphereGeometry(0.243, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.3), hairMat);
+  fringe.position.set(0, 1.12, 0.03);
+  fringe.rotation.x = 0.36;
+  fringe.scale.set(1.0, 0.86, 1.0);
   hair.add(fringe);
   // 뒷머리
   const back = new THREE.Mesh(new THREE.SphereGeometry(0.23, 16, 12), hairMat);
@@ -897,21 +913,21 @@ function makeDoll(spec, index) {
   const eyeMat = material(0x2b2620, { roughness: 0.5 });
   [-1, 1].forEach((s) => {
     const eye = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), eyeMat);
-    eye.position.set(s * 0.085, 1.1, 0.231);
+    eye.position.set(s * 0.086, 1.095, 0.239);
     eye.scale.set(0.85, 1.1, 0.6);
     g.add(eye);
     const gloss = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-    gloss.position.set(s * 0.085 + 0.01, 1.113, 0.244);
+    gloss.position.set(s * 0.086 + 0.01, 1.108, 0.252);
     g.add(gloss);
   });
   [-1, 1].forEach((s) => {
     const blush = new THREE.Mesh(new THREE.CircleGeometry(0.038, 12), new THREE.MeshBasicMaterial({ color: 0xf3a8ab, transparent: true, opacity: 0.45 }));
-    blush.position.set(s * 0.14, 1.055, 0.212);
+    blush.position.set(s * 0.145, 1.05, 0.216);
     blush.rotation.y = s * 0.4;
     g.add(blush);
   });
   const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.008, 6, 12, Math.PI), new THREE.MeshBasicMaterial({ color: 0xb8656b }));
-  mouth.position.set(0, 1.045, 0.232);
+  mouth.position.set(0, 1.04, 0.238);
   mouth.rotation.set(Math.PI, 0, 0);
   g.add(mouth);
 

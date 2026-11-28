@@ -1709,8 +1709,8 @@ body.app {
 
 .stage3d .critter .body {
   position: relative;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   flex: none;
   animation: none !important;
   translate: none !important;
@@ -1733,7 +1733,7 @@ body.app {
   position: static;
   left: auto; top: auto;
   transform: none;
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 800;
   padding: 3px 8px;
   border-radius: 999px;
@@ -1748,8 +1748,8 @@ body.app {
 
 .stage3d .critter .bubble {
   bottom: calc(100% - 2px);
-  max-width: 168px;
-  font-size: 10.5px;
+  max-width: 152px;
+  font-size: 10px;
   padding: 6px 10px;
   z-index: 40;
 }
