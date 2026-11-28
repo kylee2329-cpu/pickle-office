@@ -969,7 +969,7 @@ function makeReikaDoll(spec, index) {
   const skirtGeo = pleatGeo(latheProfile([
     [0.096, 0.632], [0.102, 0.58], [0.118, 0.49], [0.138, 0.395],
     [0.155, 0.305], [0.157, 0.28], [0.118, 0.274], [0, 0.27],
-  ], 84), 14, 0.026);
+  ].reverse(), 84), 14, 0.026);
   const skirt = new THREE.Mesh(skirtGeo, purpleHiMat);
   skirt.castShadow = true;
   g.add(skirt);
@@ -1152,7 +1152,7 @@ function makeReikaDoll(spec, index) {
     [0, 0.248], [0.058, 0.242], [0.098, 0.226], [0.13, 0.196],
     [0.154, 0.156], [0.168, 0.108], [0.174, 0.052], [0.175, -0.004],
     [0.172, -0.06], [0.166, -0.114], [0.16, -0.16],
-  ], 48, gap / 2, Math.PI * 2 - gap);
+  ].reverse(), 48, gap / 2, Math.PI * 2 - gap);
   const cap = new THREE.Mesh(capGeo, hairShellMat);
   cap.scale.set(1, 1, 0.97);
   cap.castShadow = true;
@@ -1167,7 +1167,7 @@ function makeReikaDoll(spec, index) {
     [0.112, -0.478], [0.12, -0.4], [0.138, -0.325], [0.152, -0.25],
     [0.166, -0.17], [0.172, -0.085], [0.173, 0.04],
   ];
-  const curtainGeo = taperEnds(latheProfile([...curtainOuter, ...curtainInner], 48, Math.PI / 2, Math.PI), Math.PI / 2, Math.PI, 0.6);
+  const curtainGeo = taperEnds(latheProfile([...curtainOuter, ...curtainInner].reverse(), 48, Math.PI / 2, Math.PI), Math.PI / 2, Math.PI, 0.6);
   const curtainR = (y) => {
     for (let i = 0; i < curtainOuter.length - 1; i++) {
       const a = curtainOuter[i];
@@ -1188,7 +1188,7 @@ function makeReikaDoll(spec, index) {
   const bangGeo = taperEnds(latheProfile([
     [0, 0.246], [0.062, 0.24], [0.102, 0.222], [0.134, 0.19],
     [0.156, 0.152], [0.169, 0.112], [0.173, 0.088], [0.171, 0.08],
-  ], 44, -bangSpan / 2, bangSpan), -bangSpan / 2, bangSpan, 0.45);
+  ].reverse(), 44, -bangSpan / 2, bangSpan), -bangSpan / 2, bangSpan, 0.45);
   const bang = new THREE.Mesh(bangGeo, hairShellMat);
   bang.scale.set(1, 1, 0.97);
   bang.castShadow = true;
