@@ -897,21 +897,21 @@ function makeDoll(spec, index) {
   const eyeMat = material(0x2b2620, { roughness: 0.5 });
   [-1, 1].forEach((s) => {
     const eye = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), eyeMat);
-    eye.position.set(s * 0.085, 1.1, 0.215);
+    eye.position.set(s * 0.085, 1.1, 0.231);
     eye.scale.set(0.85, 1.1, 0.6);
     g.add(eye);
     const gloss = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-    gloss.position.set(s * 0.085 + 0.01, 1.113, 0.235);
+    gloss.position.set(s * 0.085 + 0.01, 1.113, 0.244);
     g.add(gloss);
   });
   [-1, 1].forEach((s) => {
     const blush = new THREE.Mesh(new THREE.CircleGeometry(0.038, 12), new THREE.MeshBasicMaterial({ color: 0xf3a8ab, transparent: true, opacity: 0.45 }));
-    blush.position.set(s * 0.14, 1.055, 0.2);
+    blush.position.set(s * 0.14, 1.055, 0.212);
     blush.rotation.y = s * 0.4;
     g.add(blush);
   });
   const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.008, 6, 12, Math.PI), new THREE.MeshBasicMaterial({ color: 0xb8656b }));
-  mouth.position.set(0, 1.045, 0.215);
+  mouth.position.set(0, 1.045, 0.232);
   mouth.rotation.set(Math.PI, 0, 0);
   g.add(mouth);
 
@@ -1077,7 +1077,7 @@ function updateLabels() {
     const id = el.dataset.id;
     const agent = S.byId.get(id);
     if (!agent) return;
-    const p = V(agent.group.position.x, 2.50, agent.group.position.z).project(cam);
+    const p = V(agent.group.position.x, 2.06, agent.group.position.z).project(cam);
     const visible = p.z < 1 && p.x > -1.25 && p.x < 1.25 && p.y > -1.25 && p.y < 1.25;
     const dist = S.camera.position.distanceTo(V(agent.group.position.x, 1.0, agent.group.position.z));
     const scale = clamp((scaleRef / dist) * 1.5, 0.6, 1.15);
@@ -1330,7 +1330,7 @@ function start(cfg) {
     });
 
     S.clock = new THREE.Clock();
-    resetView(true);
+    resetView();
 
     const onResize = () => resize();
     window.addEventListener('resize', onResize);
@@ -1382,13 +1382,42 @@ function pickAt(clientX, clientY) {
 
 const VIEW = { pos: new THREE.Vector3(10.6, 11.6, 13.4), target: new THREE.Vector3(0, 1.0, 0.7) };
 
-function resetView(instant) {
+function resetView() {
   const c = S.camera, ctl = S.controls;
   if (!c || !ctl) return;
-  c.position.copy(VIEW.pos);
   ctl.target.copy(VIEW.target);
+  frameCamera();
   ctl.update();
-  if (instant) ctl.update();
+}
+
+// 플랫폼 전체가 화면 안에 들어오도록 카메라 거리를 자동으로 맞춥니다(가로·세로 비율 모두).
+function frameCamera(margin) {
+  const c = S.camera, ctl = S.controls;
+  if (!c || !ctl) return;
+  const m = margin == null ? 0.93 : margin;
+  const dir = new THREE.Vector3().subVectors(VIEW.pos, VIEW.target).normalize();
+  const box = new THREE.Box3(new THREE.Vector3(-9.9, -0.4, -7.9), new THREE.Vector3(9.9, 3.5, 7.9));
+  const corners = [];
+  [box.min.x, box.max.x].forEach((x) => [box.min.y, box.max.y].forEach((y) => [box.min.z, box.max.z].forEach((z) => corners.push(new THREE.Vector3(x, y, z)))));
+  const fits = (dist) => {
+    c.position.copy(ctl.target).addScaledVector(dir, dist);
+    c.lookAt(ctl.target);
+    c.updateMatrixWorld(true);
+    c.updateProjectionMatrix();
+    return corners.every((v) => {
+      const p = v.clone().project(c);
+      return Math.abs(p.x) <= m && Math.abs(p.y) <= m;
+    });
+  };
+  let lo = 7, hi = 70;
+  if (!fits(hi)) return;
+  for (let i = 0; i < 18; i++) {
+    const mid = (lo + hi) / 2;
+    if (fits(mid)) hi = mid; else lo = mid;
+  }
+  c.position.copy(ctl.target).addScaledVector(dir, hi);
+  c.lookAt(ctl.target);
+  c.updateMatrixWorld(true);
 }
 
 function resize() {
@@ -1400,12 +1429,7 @@ function resize() {
   S.camera.aspect = w / h;
   // 화면이 좁을수록 조금 멀리서 프레임에 맞춥니다.
   const fit = clamp(1.34 - Math.min(1, w / h) * 0.24, 1.02, 1.34);
-  if (!S.userMoved) {
-    const aspect = w / h;
-    const k = aspect < 1.05 ? 1.18 : aspect < 1.5 ? 1.02 : 0.9;
-    S.camera.position.copy(VIEW.pos).multiplyScalar(k);
-    S.camera.position.y = VIEW.pos.y * k * 1.02;
-  }
+  if (!S.userMoved) frameCamera();
   S.camera.updateProjectionMatrix();
 }
 
@@ -1414,7 +1438,7 @@ window.PO3D = {
   start,
   get ready() { return S.ready; },
   resize,
-  resetView() { S.userMoved = false; resetView(true); },
+  resetView() { S.userMoved = false; resetView(); },
   setMotion(on) { S.motion = !!on; },
   setSelected(id) { S.selected = id; },
   setRest(map) {
