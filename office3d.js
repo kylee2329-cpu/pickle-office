@@ -18,7 +18,7 @@ const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const ANCHORS = {
   work: [[-7.55, -4.55], [-4.90, -4.55], [-2.25, -4.55], [-7.55, -2.35], [-4.90, -2.35], [-2.25, -2.35]],
   meet: [[2.70, -5.30], [4.95, -5.30], [7.20, -5.30], [2.70, -2.20], [4.95, -2.20], [7.20, -2.20]],
-  main: [[-2.60, 4.30], [-0.20, 4.75], [2.20, 4.30], [-5.30, 2.60], [-6.80, 4.10], [5.50, 3.50]],
+  main: [[-2.90, 5.20], [-0.10, 5.75], [2.60, 5.15], [-5.20, 1.95], [-7.10, 4.35], [6.30, 4.55]],
 };
 const FOCUS = { work: [-4.90, -6.10], meet: [4.95, -3.75], main: [0.30, 2.90] };
 const DOORS = { work: [-4.60, -0.55], meet: [4.30, -0.55], main: [0.20, 1.40] };
@@ -750,6 +750,33 @@ function buildLounge(scene) {
   green.add(ball);
   green.position.set(5.8, 0, 5.4);
   g.add(green);
+
+  // 커피 바 스툴
+  [2.2, 3.4, 4.6].forEach((z) => {
+    const st = new THREE.Group();
+    addCyl(st, 0.22, 0.19, 0.08, 0, 0.62, 0, material(0xc9a179), { seg: 14 });
+    addCyl(st, 0.045, 0.05, 0.6, 0, 0.31, 0, material(0x8d6a48), { seg: 10 });
+    addCyl(st, 0.18, 0.2, 0.04, 0, 0.03, 0, material(0x8d6a48), { seg: 12 });
+    st.position.set(7.55, 0, z);
+    g.add(st);
+  });
+
+  // 빈백 옆 작은 러그·사이드 테이블
+  const sideRug = new THREE.Mesh(new THREE.CircleGeometry(1.5, 32), new THREE.MeshStandardMaterial({
+    color: 0xe9dcc4, roughness: 0.98,
+  }));
+  sideRug.rotation.x = -Math.PI / 2;
+  sideRug.scale.set(1.15, 0.8, 1);
+  sideRug.position.set(-6.2, 0.014, 3.4);
+  sideRug.receiveShadow = true;
+  g.add(sideRug);
+  const sideTable = new THREE.Group();
+  addCyl(sideTable, 0.42, 0.42, 0.06, 0, 0.46, 0, material(0xd9b183), { seg: 20 });
+  addCyl(sideTable, 0.06, 0.08, 0.44, 0, 0.23, 0, material(0xb08a63), { seg: 10 });
+  addCyl(sideTable, 0.24, 0.26, 0.03, 0, 0.02, 0, material(0xb08a63), { seg: 14 });
+  mug(sideTable, 0.12, 0.5, 0.1, 0xf7e6c8);
+  sideTable.position.set(-4.35, 0, 3.15);
+  g.add(sideTable);
 
   // 층 스탠드
   const lamp = new THREE.Group();

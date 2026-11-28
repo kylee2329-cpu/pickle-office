@@ -1720,8 +1720,8 @@ body.app {
 
 .stage3d .critter .body {
   position: relative;
-  width: 34px;
-  height: 34px;
+  width: 31px;
+  height: 31px;
   flex: none;
   animation: none !important;
   translate: none !important;
