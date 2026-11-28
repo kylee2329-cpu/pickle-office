@@ -1143,9 +1143,9 @@ function updateLabels() {
   const placed = [];
   // 좁은 화면에서는 이름표를 크게 밀어 올리지 않고, 조금만 비켜 놓습니다(캐릭터와 멀어지지 않게).
   const narrow = rect.width < 560;
-  const maxStack = narrow ? 16 : 200;
-  const labelW = narrow ? 34 : 92;
-  const labelH = narrow ? 30 : 58;
+  const maxStack = narrow ? 14 : 30;
+  const labelW = narrow ? 30 : 62;
+  const labelH = narrow ? 28 : 54;
   items.sort((a, b) => a.y - b.y);
   items.forEach((it) => {
     const w = labelW * it.scale;
