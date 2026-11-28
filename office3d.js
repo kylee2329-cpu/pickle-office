@@ -1391,12 +1391,14 @@ function resetView() {
 }
 
 // 플랫폼 전체가 화면 안에 들어오도록 카메라 거리를 자동으로 맞춥니다(가로·세로 비율 모두).
-function frameCamera(margin) {
+function frameCamera(opt) {
   const c = S.camera, ctl = S.controls;
   if (!c || !ctl) return;
-  const m = margin == null ? 0.93 : margin;
+  const o = opt || {};
+  const mx = o.x == null ? 0.985 : o.x;   // 가로는 꽉 차게
+  const my = o.y == null ? 1.12 : o.y;    // 세로는 아주 조금 넘쳐도 됨(앞쪽 바닥 여백)
   const dir = new THREE.Vector3().subVectors(VIEW.pos, VIEW.target).normalize();
-  const box = new THREE.Box3(new THREE.Vector3(-9.9, -0.4, -7.9), new THREE.Vector3(9.9, 3.5, 7.9));
+  const box = new THREE.Box3(new THREE.Vector3(-9.9, 0, -7.8), new THREE.Vector3(9.9, 3.1, 7.8));
   const corners = [];
   [box.min.x, box.max.x].forEach((x) => [box.min.y, box.max.y].forEach((y) => [box.min.z, box.max.z].forEach((z) => corners.push(new THREE.Vector3(x, y, z)))));
   const fits = (dist) => {
@@ -1406,7 +1408,7 @@ function frameCamera(margin) {
     c.updateProjectionMatrix();
     return corners.every((v) => {
       const p = v.clone().project(c);
-      return Math.abs(p.x) <= m && Math.abs(p.y) <= m;
+      return Math.abs(p.x) <= mx && Math.abs(p.y) <= my;
     });
   };
   let lo = 7, hi = 70;
