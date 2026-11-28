@@ -999,15 +999,9 @@ function makeReikaDoll(spec, index) {
   hemPipe.scale.set(1, 0.84, 1);
   g.add(hemPipe);
 
-  // 크림 블라우스 (재킷 안쪽으로 보이는 셔츠 앞판)
-  const blouse = new THREE.Mesh(rboxGeo(0.04, 0.082, 0.012, 0.005, 2), ivoryMat);
-  blouse.position.set(0, 0.827, 0.086);
-  blouse.rotation.x = 0.16;
-  g.add(blouse);
-
   // 크림 셔츠 카라 (목 둘레)
-  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.049, 0.0095, 7, 26), ivoryMat);
-  collar.position.set(0, 0.877, 0.004);
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.047, 0.0068, 7, 26), ivoryMat);
+  collar.position.set(0, 0.874, 0.004);
   collar.rotation.x = Math.PI / 2;
   collar.scale.set(1, 0.86, 1);
   g.add(collar);
@@ -1069,8 +1063,8 @@ function makeReikaDoll(spec, index) {
   parts.headBaseY = 1.142;
 
   const HEAD_PROFILE = [
-    [0, -0.228], [0.032, -0.222], [0.066, -0.21], [0.1, -0.19],
-    [0.13, -0.16], [0.15, -0.12], [0.162, -0.07], [0.168, -0.016],
+    [0, -0.228], [0.028, -0.222], [0.058, -0.208], [0.09, -0.188],
+    [0.12, -0.158], [0.144, -0.12], [0.16, -0.07], [0.168, -0.016],
     [0.168, 0.038], [0.163, 0.092], [0.152, 0.14], [0.132, 0.18],
     [0.1, 0.212], [0.06, 0.23], [0, 0.236],
   ];
@@ -1260,7 +1254,7 @@ function makeReikaDoll(spec, index) {
   handle.position.set(0.036, 0.032, 0);
   handle.rotation.y = Math.PI / 2;
   m.add(handle);
-  m.position.set(0.018, -0.252, 0.05);
+  m.position.set(0.02, -0.256, 0.062);
   prop.add(m);
   parts.armR.add(prop);
   parts.prop = prop;
