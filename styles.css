@@ -1483,6 +1483,17 @@ body.app {
 }
 
 .appbar-side { display: flex; align-items: center; gap: 7px; }
+.run-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 33px; padding: 0 12px;
+  border-radius: 999px;
+  background: #fffdf8;
+  border: 1px solid #e7dcc9;
+  color: #4e6b57;
+  font-size: 12px; font-weight: 800;
+  box-shadow: 0 1px 2px rgba(130, 95, 50, .06);
+}
+.run-pill i { width: 8px; height: 8px; border-radius: 50%; background: #35a86b; box-shadow: 0 0 0 3px rgba(53, 168, 107, .16); }
 .appbar-side .pill { background: rgba(255, 253, 248, .9); height: 33px; font-size: 12px; }
 .appbar-side .icon-btn { background: rgba(255, 253, 248, .9); }
 
@@ -1516,7 +1527,7 @@ body.app {
   transition: transform .16s ease, box-shadow .2s ease, background .2s ease, color .2s ease;
   white-space: nowrap;
 }
-.navtab .nt-ico { font-size: 17px; line-height: 1; }
+.navtab .nt-ico { font-size: 17px; line-height: 1; flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 18px; }
 .navtab:hover { background: #fffdf8; transform: translateY(-1px); box-shadow: 0 6px 14px rgba(130, 95, 50, .12); }
 .navtab.is-active {
   background: linear-gradient(180deg, #8d5c31, #6d4222);
@@ -2084,6 +2095,7 @@ body.app {
   .appbar .brand-mark { width: 44px; height: 44px; font-size: 21px; border-width: 2px; }
   .appbar .brand-text h1 { font-size: 18.5px; }
   .appbar .brand-text p { font-size: 10.5px; }
+  .run-pill { height: 30px; padding: 0 10px; font-size: 11px; }
   .appbar-side .pill { height: 30px; padding: 0 9px; font-size: 11px; }
   .appbar-side .icon-btn { width: 32px; height: 32px; }
 
