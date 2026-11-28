@@ -1415,12 +1415,12 @@ function makeReikaStandee(spec, index) {
 
   /* ---------- 소품 피벗 (라운지 액션 호환) ---------- */
   const armR = new THREE.Object3D();
-  armR.position.set(FIG_W * 0.30, 1.42, 0.06);
+  armR.position.set(FIG_W * 0.42, 1.16, 0.20);
   pivot.add(armR);
   parts.armR = armR;
 
   const armL = new THREE.Object3D();
-  armL.position.set(-FIG_W * 0.30, 1.42, 0.06);
+  armL.position.set(-FIG_W * 0.42, 1.16, 0.20);
   pivot.add(armL);
   parts.armL = armL;
 
@@ -1438,6 +1438,7 @@ function makeReikaStandee(spec, index) {
   addBox(putter, 0.12, 0.03, 0.05, 0, -0.6, 0.02, material(0x4e5862), { r: 0.01 });
   putter.position.set(0, 0, 0.06);
   putter.rotation.x = 0.25;
+  putter.scale.setScalar(0.78);
   putter.visible = false;
   armR.add(putter);
   parts.putter = putter;
@@ -1451,6 +1452,7 @@ function makeReikaStandee(spec, index) {
   strings.position.set(0, -0.62, 0);
   racket.add(strings);
   racket.rotation.x = 0.3;
+  racket.scale.setScalar(0.78);
   racket.visible = false;
   armR.add(racket);
   parts.racket = racket;
