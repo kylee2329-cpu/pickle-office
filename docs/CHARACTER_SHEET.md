@@ -36,14 +36,14 @@
 
 | id | 스탠드 PNG | 크기(px) | 종횡비 | 맵 높이(월드) | 받침대 반지름 |
 |---|---|---|---|---|---|
-| kyle | `assets/standees/kyle.png` | 375×900 | 0.4167 | 1.84 | 0.30 |
-| cloie | `assets/standees/cloie.png` | 348×900 | 0.3867 | 1.80 | 0.28 |
-| aika | `assets/standees/aika.png` | 414×900 | 0.4600 | 1.78 | 0.31 |
+| kyle | `assets/standees/kyle.png` | 375×900 | 0.4167 | 1.84 | 0.32 |
+| cloie | `assets/standees/cloie.png` | 348×900 | 0.3867 | 1.80 | 0.29 |
+| aika | `assets/standees/aika.png` | 414×900 | 0.4600 | 1.78 | 0.34 |
 | peika | `assets/standees/peika.png` | 323×900 | 0.3589 | 1.79 | 0.27 |
 | reika | `assets/standees/reika.png` | 331×900 | 0.3678 | 1.80 | 0.28 |
-| seika | `assets/standees/seika.png` | 360×900 | 0.4000 | 1.83 | 0.29 |
+| seika | `assets/standees/seika.png` | 360×900 | 0.4000 | 1.83 | 0.31 |
 
-- 받침대 반지름은 `clamp(폭 × 0.42, 0.24, 0.34)`로 이미지 폭에서 자동 계산합니다(위 값은 계산 결과).
+- 받침대 반지름은 `clamp(폭 × 0.42, 0.24, 0.34)`로 이미지 폭에서 자동 계산합니다(위 값은 계산 결과, aika만 상한 0.34에 걸림).
 - 6인 비교 시트: `assets/office-v4-screenshots/standees-6-sheet.png` (3×2, 이름·직함 포함)
 - 원본(순백 PNG): `downloads/chibi-<id>-raw.png`, 레이카는 `downloads/reika-chibi-sample.png`
 
