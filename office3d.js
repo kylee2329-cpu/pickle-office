@@ -1976,6 +1976,7 @@ window.PO3D = {
     const dist = o.dist == null ? 4 : o.dist;
     const yaw = a.group.rotation.y + (o.yaw == null ? 0 : o.yaw);
     const pitch = o.pitch == null ? 0.16 : o.pitch;
+    if (o.allowClose || dist < S.controls.minDistance) S.controls.minDistance = Math.min(S.controls.minDistance, dist);
     S.camera.position.set(
       target.x + Math.sin(yaw) * Math.cos(pitch) * dist,
       target.y + Math.sin(pitch) * dist,
