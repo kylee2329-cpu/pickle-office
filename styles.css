@@ -2078,7 +2078,7 @@ body.app {
   overflow: hidden;
   word-break: keep-all;
 }
-.status-when { margin-top: 7px; font-size: 10.5px; color: #a2937d; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.status-when { margin-top: 7px; font-size: 10.5px; color: #a2937d; line-height: 1.5; word-break: keep-all; }
 
 /* 한도 소진 · 무응답 배지 (비서현황 · 상세 카드 공용) */
 .health-chip {
@@ -2122,7 +2122,7 @@ body.app {
 .limit-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .limit-row .limit-btn { margin-top: 0; }
 .limit-hint { font-size: 10.5px; color: var(--ink-3); }
-.detail-when { margin-top: 7px; font-size: 11px; color: var(--ink-3); }
+.detail-when { margin-top: 7px; font-size: 11px; color: var(--ink-3); line-height: 1.5; word-break: keep-all; }
 .detail-note {
   margin-top: 6px; font-size: 11px; color: #a3461a;
   background: #fdf1e8; border: 1px solid #f3d2bd; border-radius: 10px; padding: 5px 9px;
