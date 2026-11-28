@@ -829,7 +829,7 @@ const RK = {
   purpleDeep: 0x5a33b8,
   cream: 0xf9f1e2,
   ivory: 0xfffbf3,
-  tights: 0xf2dccb,
+  tights: 0xf8ecdd,
   shoe: 0x4b3a52,
   pearl: 0xfff9f0,
   eye: 0x33241d,
@@ -866,6 +866,30 @@ function taperedTube(points, r0, r1, radial = 9, tubular = 26) {
       const k = i * ring + j;
       pos.setXYZ(k, cx + (pos.getX(k) - cx) * f, cy + (pos.getY(k) - cy) * f, cz + (pos.getZ(k) - cz) * f);
     }
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// 라떼 표면의 phi 양 끝을 안쪽으로 말아 넣어, 잘린 단면이 보이지 않게 합니다. (머리카락 커튼용)
+function taperEnds(geo, phiStart, phiLength, falloff = 0.55) {
+  const pos = geo.attributes.position;
+  const start = phiStart;
+  const end = phiStart + phiLength;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    if (Math.hypot(x, z) < 1e-4) continue;
+    let phi = Math.atan2(x, z);
+    let dEnd = Infinity;
+    [phi - Math.PI * 2, phi, phi + Math.PI * 2].forEach((c) => {
+      dEnd = Math.min(dEnd, Math.abs(c - start), Math.abs(c - end));
+    });
+    const f = Math.min(1, dEnd / falloff);
+    const k = 0.42 + 0.58 * (f * f * (3 - 2 * f));
+    pos.setXYZ(i, x * k, y, z * k);
   }
   pos.needsUpdate = true;
   geo.computeVertexNormals();
@@ -939,14 +963,14 @@ function makeReikaDoll(spec, index) {
 
   /* ---------- 플레어 스커트 ---------- */
   const skirtGeo = pleatGeo(latheProfile([
-    [0.096, 0.632], [0.104, 0.585], [0.126, 0.505], [0.15, 0.425],
-    [0.168, 0.35], [0.17, 0.316], [0.128, 0.31], [0, 0.306],
+    [0.096, 0.632], [0.102, 0.58], [0.118, 0.49], [0.138, 0.395],
+    [0.155, 0.305], [0.157, 0.28], [0.118, 0.274], [0, 0.27],
   ], 84), 14, 0.026);
   const skirt = new THREE.Mesh(skirtGeo, purpleHiMat);
   skirt.castShadow = true;
   g.add(skirt);
-  const hem = new THREE.Mesh(new THREE.TorusGeometry(0.169, 0.007, 6, 46), creamMat);
-  hem.position.set(0, 0.324, 0);
+  const hem = new THREE.Mesh(new THREE.TorusGeometry(0.156, 0.007, 6, 46), creamMat);
+  hem.position.set(0, 0.288, 0);
   hem.rotation.x = Math.PI / 2;
   g.add(hem);
 
@@ -973,8 +997,8 @@ function makeReikaDoll(spec, index) {
   g.add(hemPipe);
 
   // 크림 블라우스 (재킷 안쪽으로 보이는 셔츠 앞판)
-  const blouse = new THREE.Mesh(rboxGeo(0.056, 0.088, 0.012, 0.005, 2), ivoryMat);
-  blouse.position.set(0, 0.818, 0.09);
+  const blouse = new THREE.Mesh(rboxGeo(0.04, 0.082, 0.012, 0.005, 2), ivoryMat);
+  blouse.position.set(0, 0.827, 0.086);
   blouse.rotation.x = 0.16;
   g.add(blouse);
 
@@ -1110,9 +1134,9 @@ function makeReikaDoll(spec, index) {
     blush.rotation.y = s * 0.5;
     headGroup.add(blush);
   });
-  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.01, 8, 8), skinMat);
-  nose.position.set(0, -0.084, 0.15);
-  nose.scale.set(0.85, 0.8, 0.55);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.0085, 8, 8), skinMat);
+  nose.position.set(0, -0.084, 0.146);
+  nose.scale.set(0.8, 0.75, 0.5);
   headGroup.add(nose);
   const mouth = new THREE.Mesh(taperedTube([
     [-0.02, -0.124, 0.145], [-0.009, -0.132, 0.15], [0, -0.135, 0.152], [0.009, -0.132, 0.15], [0.02, -0.124, 0.145],
@@ -1138,14 +1162,14 @@ function makeReikaDoll(spec, index) {
 
   // 뒷머리 커튼 — 어깨까지 흐르는 한 덩어리 실루엣
   const curtainOuter = [
-    [0.176, 0.04], [0.18, -0.04], [0.184, -0.12], [0.18, -0.2],
-    [0.184, -0.285], [0.17, -0.355], [0.152, -0.425], [0.134, -0.478],
+    [0.176, 0.04], [0.181, -0.04], [0.176, -0.12], [0.185, -0.2],
+    [0.176, -0.285], [0.182, -0.355], [0.164, -0.425], [0.138, -0.478],
   ];
   const curtainInner = [
     [0.112, -0.478], [0.12, -0.4], [0.138, -0.325], [0.152, -0.25],
     [0.166, -0.17], [0.172, -0.085], [0.173, 0.04],
   ];
-  const curtainGeo = latheProfile([...curtainOuter, ...curtainInner], 48, Math.PI / 2, Math.PI);
+  const curtainGeo = taperEnds(latheProfile([...curtainOuter, ...curtainInner], 48, Math.PI / 2, Math.PI), Math.PI / 2, Math.PI, 0.6);
   const curtainR = (y) => {
     for (let i = 0; i < curtainOuter.length - 1; i++) {
       const a = curtainOuter[i];
@@ -1163,14 +1187,17 @@ function makeReikaDoll(spec, index) {
 
   // 앞머리 — 이마 표면을 따라 옆으로 흐르는 사이드 뱅
   hair.add(new THREE.Mesh(taperedTube([
-    hp(26, 0.212, 0.03), hp(10, 0.2, 0.026), hp(-14, 0.168, 0.022), hp(-42, 0.122, 0.018), hp(-66, 0.082, 0.014),
-  ], 0.044, 0.012, 8, 28), hairMat));
+    hp(30, 0.215, 0.03), hp(12, 0.195, 0.026), hp(-8, 0.155, 0.022), hp(-30, 0.108, 0.018),
+  ], 0.042, 0.012, 8, 28), hairMat));
   hair.add(new THREE.Mesh(taperedTube([
-    hp(-4, 0.222, 0.026), hp(-24, 0.196, 0.024), hp(-48, 0.152, 0.02), hp(-72, 0.108, 0.015),
-  ], 0.038, 0.011, 8, 26), hairMat));
+    hp(6, 0.206, 0.026), hp(-14, 0.176, 0.024), hp(-38, 0.136, 0.02), hp(-62, 0.096, 0.016),
+  ], 0.036, 0.011, 8, 26), hairMat));
   hair.add(new THREE.Mesh(taperedTube([
-    hp(34, 0.208, 0.024), hp(50, 0.182, 0.02), hp(64, 0.14, 0.016), hp(70, 0.104, 0.013),
+    hp(44, 0.206, 0.024), hp(58, 0.172, 0.02), hp(70, 0.132, 0.016),
   ], 0.03, 0.009, 8, 22), hairMat));
+  hair.add(new THREE.Mesh(taperedTube([
+    hp(-18, 0.222, 0.026), hp(-36, 0.172, 0.022), hp(-52, 0.116, 0.018),
+  ], 0.034, 0.01, 8, 22), hairMat));
 
   // 얼굴 옆을 감싸는 가닥 (표면 밀착)
   [-1, 1].forEach((s) => {
