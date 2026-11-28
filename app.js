@@ -2311,7 +2311,9 @@
     const hash = location.hash.match(/fb=([^&]+)/);
     const saved = localStorage.getItem(LS.fb);
     const demoChosen = localStorage.getItem(LS.demo) === '1';
-    const target = hash ? decodeURIComponent(hash[1]) : (saved || (demoChosen ? '' : DEFAULT_FB));
+    // ?demo=1 : 실시간 DB에 쓰지 않는 순수 데모(검증·시연용). 저장값보다 우선합니다.
+    const urlDemo = /(?:^|[?&])demo=1(?:&|$)/.test(location.search);
+    const target = urlDemo ? '' : (hash ? decodeURIComponent(hash[1]) : (saved || (demoChosen ? '' : DEFAULT_FB)));
     if (target) {
       $('#fbUrl').value = target;
       refreshShareLink();
