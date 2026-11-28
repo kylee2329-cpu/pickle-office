@@ -23,9 +23,9 @@ const ANCHORS = {
 const FOCUS = { work: [-4.90, -6.10], meet: [4.95, -3.75], main: [0.30, 2.90] };
 const DOORS = { work: [-4.60, -0.55], meet: [4.30, -0.55], main: [0.20, 1.40] };
 const PINS = {
-  work: { pos: [-4.90, 4.05, -1.20], label: '🗂 작업실' },
-  meet: { pos: [5.10, 4.20, -0.40], label: '📋 회의실' },
-  main: { pos: [0.20, 2.95, 7.05], label: '☕ 라운지' },
+  work: { pos: [-4.90, 4.95, -1.20], label: '🗂 작업실' },
+  meet: { pos: [5.10, 5.05, -0.40], label: '📋 회의실' },
+  main: { pos: [0.20, 3.85, 7.05], label: '☕ 라운지' },
 };
 
 /* ---------------- 캐릭터별 머리 모양/소품 ---------------- */
@@ -1179,7 +1179,7 @@ function updateLabels() {
     const x = (p.x * 0.5 + 0.5) * rect.width;
     const y = (-p.y * 0.5 + 0.5) * rect.height;
     const dist = S.camera.position.distanceTo(V(pin.pos[0], pin.pos[1], pin.pos[2]));
-    const s = clamp(24 / dist * 1.1, 0.7, 1.05);
+    const s = clamp(22 / dist * 1.05, 0.62, 0.98);
     el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%) scale(${s.toFixed(3)})`;
     el.style.opacity = p.z < 1 ? '' : '0';
   });
