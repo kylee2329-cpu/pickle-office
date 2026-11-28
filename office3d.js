@@ -1114,19 +1114,22 @@ function updateLabels() {
 
   // 화면 위쪽부터 차례로 놓으며 겹치면 위로 밀어 올립니다.
   const placed = [];
+  // 좁은 화면에서는 이름표를 크게 밀어 올리지 않고, 조금만 비켜 놓습니다(캐릭터와 멀어지지 않게).
+  const narrow = rect.width < 560;
+  const maxStack = narrow ? 16 : 200;
+  const labelW = narrow ? 34 : 92;
+  const labelH = narrow ? 30 : 58;
   items.sort((a, b) => a.y - b.y);
   items.forEach((it) => {
-    const w = 92 * it.scale;
-    const h = 58 * it.scale;
+    const w = labelW * it.scale;
+    const h = labelH * it.scale;
     let y = it.y;
     for (let guard = 0; guard < 8; guard++) {
       const box = { l: it.x - w / 2, r: it.x + w / 2, t: y - h, b: y + 4 };
       const hit = placed.find((p) => box.l < p.r && box.r > p.l && box.t < p.b && box.b > p.t);
       if (!hit) { placed.push(box); break; }
-      y = hit.t - 6;
-      if (y - h < 6) { // 너무 위로 밀리면 아래로
-        y = hit.b + h + 6;
-      }
+      if (it.y - (hit.t - 4) > maxStack) { placed.push(box); break; }
+      y = Math.max(it.y - maxStack, hit.t - 2);
     }
     it.y = y;
     if (!it.visible) {

@@ -2148,8 +2148,15 @@ body.app {
   .stage3d .critter .name-tag { font-size: 9px; padding: 2px 6px; }
   .stage3d .critter .bubble { max-width: 150px; font-size: 10px; }
 
-  .char-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .char-bar .char-chip { padding: 6px; }
+  .char-bar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    overflow: visible;
+  }
+  .char-bar .char-chip { padding: 6px; flex: none; min-width: 0; }
+  .char-bar .char-chip .mini { width: 24px; flex: none; }
+  .char-bar .char-chip .meta { flex: 1 1 auto; overflow: hidden; }
 
   .panel-chat .chat-card { height: calc(100dvh - 210px); min-height: 460px; border-radius: 20px; }
 
