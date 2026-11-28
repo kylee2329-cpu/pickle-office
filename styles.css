@@ -1748,8 +1748,8 @@ body.app {
 
 .stage3d .critter .bubble {
   bottom: calc(100% - 2px);
-  max-width: 190px;
-  font-size: 11px;
+  max-width: 168px;
+  font-size: 10.5px;
   padding: 6px 10px;
   z-index: 40;
 }

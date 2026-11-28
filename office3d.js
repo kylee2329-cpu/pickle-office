@@ -23,19 +23,19 @@ const ANCHORS = {
 const FOCUS = { work: [-4.90, -6.10], meet: [4.95, -3.75], main: [0.30, 2.90] };
 const DOORS = { work: [-4.60, -0.55], meet: [4.30, -0.55], main: [0.20, 1.40] };
 const PINS = {
-  work: { pos: [-4.90, 3.30, -6.30], label: '🗂 작업실' },
-  meet: { pos: [4.95, 3.45, -5.10], label: '📋 회의실' },
-  main: { pos: [0.30, 3.05, 5.20], label: '☕ 라운지' },
+  work: { pos: [-4.90, 2.05, -0.85], label: '🗂 작업실' },
+  meet: { pos: [4.90, 2.35, -0.25], label: '📋 회의실' },
+  main: { pos: [7.90, 2.10, 6.10], label: '☕ 라운지' },
 };
 
 /* ---------------- 캐릭터별 머리 모양/소품 ---------------- */
 const LOOKS = {
-  kyle: { hair: 'bob', hairColor: 0x2f2a28, prop: 'clipboard', skin: 0xf3d4bd },
-  cloie: { hair: 'long', hairColor: 0x4a2f24, prop: 'tablet', skin: 0xf6dbc6 },
-  aika: { hair: 'ponytail', hairColor: 0x3a2a22, prop: 'marker', skin: 0xf1d0b6 },
-  peika: { hair: 'bun', hairColor: 0x5a3a26, prop: 'mug', skin: 0xf6d9c0 },
-  reika: { hair: 'wave', hairColor: 0x332b2a, prop: 'mug', skin: 0xf4d5c0 },
-  seika: { hair: 'high', hairColor: 0x2b2622, prop: 'phone', skin: 0xf2d2ba },
+  kyle: { hair: 'bob', hairColor: 0x574539, prop: 'clipboard', skin: 0xf3d4bd },
+  cloie: { hair: 'long', hairColor: 0x6b4630, prop: 'tablet', skin: 0xf6dbc6 },
+  aika: { hair: 'ponytail', hairColor: 0x5b4030, prop: 'marker', skin: 0xf1d0b6 },
+  peika: { hair: 'bun', hairColor: 0x7a5334, prop: 'mug', skin: 0xf6d9c0 },
+  reika: { hair: 'wave', hairColor: 0x4e3d33, prop: 'mug', skin: 0xf4d5c0 },
+  seika: { hair: 'high', hairColor: 0x453428, prop: 'phone', skin: 0xf2d2ba },
 };
 
 /* ---------------- 캔버스 텍스처 ---------------- */
@@ -998,6 +998,12 @@ function anchorFor(room, idx) {
   return list[idx % list.length];
 }
 
+const BASE_YAW = {
+  main: (i) => (i % 3 - 1) * 0.42,          // 라운지: 카메라 쪽(+z)을 바라보되 조금씩 흩어지게
+  work: () => Math.PI,                       // 작업실: 책상을 바라봄(-z)
+  meet: (i) => (i < 3 ? 0.12 : Math.PI - 0.12), // 회의실: 테이블 쪽
+};
+
 function faceToward(obj, target, lerp) {
   const dx = target.x - obj.position.x;
   const dz = target.z - obj.position.z;
@@ -1033,6 +1039,7 @@ function startWalk(agent, room, idx, opts) {
   agent.room = room;
   agent.idx = idx;
   agent.target = pos;
+  agent.baseYaw = (BASE_YAW[room] || BASE_YAW.main)(idx);
   agent.walk = { path, seg: 0, t: 0, speed: opts && opts.speed ? opts.speed : 2.6 };
   agent.anim = 'walk';
 }
@@ -1167,6 +1174,12 @@ function stepWalk(agent, dt) {
 
 function stepIdle(agent, t) {
   const p = agent.group.userData.parts;
+  if (agent.baseYaw != null) {
+    let d = agent.baseYaw - agent.group.rotation.y;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    agent.group.rotation.y += d * 0.07;
+  }
   const ph = agent.phase || 0;
   const rest = S.rest[agent.id] || '';
   const moving = S.motion && !S.reduced;
@@ -1222,10 +1235,7 @@ function animate() {
 
   S.agents.forEach((agent) => {
     if (agent.walk) stepWalk(agent, dt);
-    else {
-      stepIdle(agent, t);
-      if (agent.room) faceToward(agent.group, V(FOCUS[agent.room][0], 0, FOCUS[agent.room][1]), 0.08);
-    }
+    else stepIdle(agent, t);
     // 선택 링
     const ring = agent.group.userData.parts.ring;
     if (ring) {
@@ -1302,7 +1312,7 @@ function start(cfg) {
       const room = spec.room || 'main';
       const anchor = anchorFor(room, i % 6);
       doll.position.set(anchor[0], 0, anchor[1]);
-      doll.rotation.y = Math.atan2(FOCUS[room][0] - anchor[0], FOCUS[room][1] - anchor[1]);
+      doll.rotation.y = (BASE_YAW[room] || BASE_YAW.main)(i % 6);
       scene.add(doll);
       const agent = {
         id: spec.id,
@@ -1310,6 +1320,7 @@ function start(cfg) {
         room,
         idx: i % 6,
         target: anchor,
+        baseYaw: (BASE_YAW[room] || BASE_YAW.main)(i % 6),
         phase: rand(0, Math.PI * 2),
         anim: 'idle',
       };
@@ -1391,7 +1402,7 @@ function resize() {
   const fit = clamp(1.34 - Math.min(1, w / h) * 0.24, 1.02, 1.34);
   if (!S.userMoved) {
     const aspect = w / h;
-    const k = aspect < 1.05 ? 1.12 : aspect < 1.5 ? 0.96 : 0.80;
+    const k = aspect < 1.05 ? 1.18 : aspect < 1.5 ? 1.02 : 0.9;
     S.camera.position.copy(VIEW.pos).multiplyScalar(k);
     S.camera.position.y = VIEW.pos.y * k * 1.02;
   }
