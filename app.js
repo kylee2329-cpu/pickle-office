@@ -723,7 +723,13 @@
       body: btn.querySelector('.body'),
       box: btn.getBoundingClientRect(),
     })).filter((it) => it.bubble);
-    const faces = items.map((it) => ({ btn: it.btn, box: (it.body || it.btn).getBoundingClientRect() }));
+    // 3D 모드에서는 이름표까지 장애물로 봐서, 말풍선이 다른 비서의 얼굴·이름을 가리지 않게 합니다.
+    const faces = items.flatMap((it) => {
+      const boxes = [(it.body || it.btn).getBoundingClientRect()];
+      const tag = it.btn.querySelector('.name-tag');
+      if (tag) boxes.push(tag.getBoundingClientRect());
+      return boxes.filter((b) => b && b.width).map((box) => ({ btn: it.btn, box }));
+    });
     const placed = [];
     // 위쪽부터 차례로 놓아 자리가 안정적으로 보이게 합니다.
     items.filter((it) => bubbleActive(it.btn))

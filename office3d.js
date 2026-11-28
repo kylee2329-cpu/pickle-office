@@ -1080,7 +1080,7 @@ function updateLabels() {
     const p = V(agent.group.position.x, 2.06, agent.group.position.z).project(cam);
     const visible = p.z < 1 && p.x > -1.25 && p.x < 1.25 && p.y > -1.25 && p.y < 1.25;
     const dist = S.camera.position.distanceTo(V(agent.group.position.x, 1.0, agent.group.position.z));
-    const scale = clamp((scaleRef / dist) * 1.5, 0.6, 1.15);
+    const scale = clamp((scaleRef / dist) * 1.5, 0.82, 1.08);
     items.push({
       id, el, visible,
       x: (p.x * 0.5 + 0.5) * rect.width,
