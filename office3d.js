@@ -17,15 +17,15 @@ const V = (x, y, z) => new THREE.Vector3(x, y, z);
 // 작업실 = 왼쪽 뒤, 회의실 = 오른쪽 뒤, 메인 라운지 = 앞쪽 전체
 const ANCHORS = {
   work: [[-7.55, -4.55], [-4.90, -4.55], [-2.25, -4.55], [-7.55, -2.35], [-4.90, -2.35], [-2.25, -2.35]],
-  meet: [[2.70, -4.95], [4.95, -4.95], [7.20, -4.95], [2.70, -2.55], [4.95, -2.55], [7.20, -2.55]],
+  meet: [[2.70, -5.30], [4.95, -5.30], [7.20, -5.30], [2.70, -2.20], [4.95, -2.20], [7.20, -2.20]],
   main: [[-2.60, 4.30], [-0.20, 4.75], [2.20, 4.30], [-5.30, 2.60], [-6.80, 4.10], [5.50, 3.50]],
 };
 const FOCUS = { work: [-4.90, -6.10], meet: [4.95, -3.75], main: [0.30, 2.90] };
-const DOORS = { work: [-4.60, -0.55], meet: [5.20, -0.55], main: [0.20, 1.40] };
+const DOORS = { work: [-4.60, -0.55], meet: [4.30, -0.55], main: [0.20, 1.40] };
 const PINS = {
-  work: { pos: [-5.10, 2.30, -3.30], label: '🗂 작업실' },
-  meet: { pos: [6.10, 2.55, -3.10], label: '📋 회의실' },
-  main: { pos: [0.20, 2.05, 3.60], label: '☕ 라운지' },
+  work: { pos: [-4.90, 3.30, -6.30], label: '🗂 작업실' },
+  meet: { pos: [4.95, 3.45, -5.10], label: '📋 회의실' },
+  main: { pos: [0.30, 3.05, 5.20], label: '☕ 라운지' },
 };
 
 /* ---------------- 캐릭터별 머리 모양/소품 ---------------- */
@@ -56,11 +56,11 @@ function canvasTex(w, h, draw, repeat) {
 
 function woodTexture() {
   return canvasTex(512, 512, (g, w, h) => {
-    g.fillStyle = '#e8c99f';
+    g.fillStyle = '#e3bd8c';
     g.fillRect(0, 0, w, h);
     const plank = 64;
     for (let y = 0; y < h; y += plank) {
-      g.fillStyle = `rgba(214, 172, 124, ${0.16 + Math.random() * 0.16})`;
+      g.fillStyle = `rgba(206, 158, 106, ${0.2 + Math.random() * 0.18})`;
       g.fillRect(0, y, w, plank);
       g.strokeStyle = 'rgba(150, 110, 72, .22)';
       g.lineWidth = 2;
@@ -217,10 +217,10 @@ function fail(reason) {
 
 /* ---------------- 조명 ---------------- */
 function addLights(scene) {
-  const hemi = new THREE.HemisphereLight(0xfff6e6, 0xd9c3a2, 1.05);
+  const hemi = new THREE.HemisphereLight(0xfff4e2, 0xd9bf99, 0.78);
   scene.add(hemi);
 
-  const key = new THREE.DirectionalLight(0xfff0d2, 2.1);
+  const key = new THREE.DirectionalLight(0xfff0d0, 2.45);
   key.position.set(9, 17, 12);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
@@ -234,7 +234,7 @@ function addLights(scene) {
   key.shadow.normalBias = 0.02;
   scene.add(key);
 
-  const fill = new THREE.DirectionalLight(0xcfe0ff, 0.55);
+  const fill = new THREE.DirectionalLight(0xcfe0ff, 0.42);
   fill.position.set(-12, 9, -8);
   scene.add(fill);
 
@@ -246,10 +246,10 @@ function addLights(scene) {
 /* ---------------- 플랫폼·벽·바닥 ---------------- */
 function buildShell(scene) {
   const floorTex = woodTexture();
-  const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.82, metalness: 0.02 });
+  const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.8, metalness: 0.02 });
 
   // 단면이 둥근 나무 베이스
-  const base = new THREE.Mesh(rboxGeo(19.8, 0.75, 15.8, 0.28, 4), material(0xd9ab7c));
+  const base = new THREE.Mesh(rboxGeo(19.8, 0.75, 15.8, 0.28, 4), material(0xd2a070));
   base.position.set(0, -0.38, 0);
   base.receiveShadow = true;
   scene.add(base);
@@ -265,8 +265,8 @@ function buildShell(scene) {
   step.position.set(0, -0.30, 7.75);
   scene.add(step);
 
-  const wallMat = material(0xf4e7d4, { roughness: 0.94 });
-  const trimMat = material(0xe6d2b6);
+  const wallMat = material(0xf7ead6, { roughness: 0.95 });
+  const trimMat = material(0xe3cdaf);
   const H = 3.35;
   const T = 0.26;
 
@@ -645,8 +645,8 @@ function buildLounge(scene) {
 
   // 곡선 소파 (3조각)
   const sofaG = new THREE.Group();
-  const sofaMat = material(0x9db8ab, { roughness: 0.98 });
-  const sofaDark = material(0x87a396, { roughness: 0.98 });
+  const sofaMat = material(0x93b3a4, { roughness: 0.98 });
+  const sofaDark = material(0x7d9d8e, { roughness: 0.98 });
   [[-1.55, 0.5, 0.42], [0, 0.32, 0], [1.55, 0.5, -0.42]].forEach(([x, rot, zz]) => {
     const seg = new THREE.Group();
     addBox(seg, 1.7, 0.34, 1.05, 0, 0.2, 0, sofaMat, { r: 0.14 });
@@ -780,7 +780,9 @@ function buildLounge(scene) {
 function makeDoll(spec, index) {
   const look = LOOKS[spec.id] || LOOKS.reika;
   const g = new THREE.Group();
-  const outfit = material(new THREE.Color(spec.color), { roughness: 0.76 });
+  // 클레이 미니어처 느낌으로 옷 색을 살짝 밝힙니다.
+  const cloth = new THREE.Color(spec.color).lerp(new THREE.Color(0xfff6ea), 0.22);
+  const outfit = material(cloth, { roughness: 0.72 });
   const skin = material(look.skin, { roughness: 0.8 });
   const hairMat = material(look.hairColor, { roughness: 0.72 });
   const shoe = material(0x5c5148, { roughness: 0.8 });
@@ -985,6 +987,7 @@ function makeDoll(spec, index) {
 
   g.traverse((o) => { if (o.isMesh) o.userData.agentId = spec.id; });
 
+  g.scale.setScalar(1.28);
   g.userData = { spec, parts, index };
   return g;
 }
@@ -1067,10 +1070,10 @@ function updateLabels() {
     const id = el.dataset.id;
     const agent = S.byId.get(id);
     if (!agent) return;
-    const p = V(agent.group.position.x, 1.62, agent.group.position.z).project(cam);
+    const p = V(agent.group.position.x, 2.08, agent.group.position.z).project(cam);
     const visible = p.z < 1 && p.x > -1.25 && p.x < 1.25 && p.y > -1.25 && p.y < 1.25;
-    const dist = S.camera.position.distanceTo(V(agent.group.position.x, 0.8, agent.group.position.z));
-    const scale = clamp((scaleRef / dist) * 1.15, 0.62, 1.18);
+    const dist = S.camera.position.distanceTo(V(agent.group.position.x, 1.0, agent.group.position.z));
+    const scale = clamp((scaleRef / dist) * 1.5, 0.6, 1.15);
     items.push({
       id, el, visible,
       x: (p.x * 0.5 + 0.5) * rect.width,
@@ -1269,7 +1272,7 @@ function start(cfg) {
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.06;
+    renderer.toneMappingExposure = 1.0;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     S.renderer = renderer;
@@ -1287,10 +1290,10 @@ function start(cfg) {
     controls.rotateSpeed = 0.62;
     controls.zoomSpeed = 0.85;
     controls.enablePan = false;
-    controls.minDistance = 13;
-    controls.maxDistance = 46;
+    controls.minDistance = 9;
+    controls.maxDistance = 38;
     controls.minPolarAngle = 0.18;
-    controls.maxPolarAngle = 1.24;
+    controls.maxPolarAngle = 1.3;
     controls.target.set(0, 0.9, 0.4);
     S.controls = controls;
 
@@ -1365,7 +1368,7 @@ function pickAt(clientX, clientY) {
   if (id && S.onSelect) S.onSelect(id);
 }
 
-const VIEW = { pos: new THREE.Vector3(14.2, 16.5, 18.8), target: new THREE.Vector3(0, 0.9, 0.4) };
+const VIEW = { pos: new THREE.Vector3(10.6, 11.6, 13.4), target: new THREE.Vector3(0, 1.0, 0.7) };
 
 function resetView(instant) {
   const c = S.camera, ctl = S.controls;
@@ -1386,8 +1389,10 @@ function resize() {
   // 화면이 좁을수록 조금 멀리서 프레임에 맞춥니다.
   const fit = clamp(1.34 - Math.min(1, w / h) * 0.24, 1.02, 1.34);
   if (!S.userMoved) {
-    S.camera.position.copy(VIEW.pos).multiplyScalar(fit);
-    S.camera.position.y = VIEW.pos.y * (0.94 + (fit - 1) * 0.5);
+    const aspect = w / h;
+    const k = aspect < 1.1 ? 1.3 : aspect < 1.55 ? 1.1 : 0.97;
+    S.camera.position.copy(VIEW.pos).multiplyScalar(k);
+    S.camera.position.y = VIEW.pos.y * k * 1.02;
   }
   S.camera.updateProjectionMatrix();
 }
