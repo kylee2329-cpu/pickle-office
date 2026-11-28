@@ -1309,11 +1309,21 @@ function makeReikaDoll(spec, index) {
   return g;
 }
 
-/* ─────────────────────────────────────────────
-   2.5D 일러스트 스탠드 (레이카)
-   - 3D 원형 받침대 위에 세운 투명 PNG 일러스트
-   - 매 프레임 Y축 빌보드로 카메라를 바라봄 (옆면이 보이지 않음)
-   ───────────────────────────────────────────── */
+/* ------------------------------------------------------------------
+   2.5D 3등신 스탠드 피규어 (6인 공통)
+   - 3D 원형 받침대(크림 베이스 + 각자 시그니처 컬러 림) 위에 세운 투명 PNG
+   - 매 프레임 Y축 빌보드로 카메라를 정면으로 바라봄 (옆면이 보이지 않음)
+   - 규격·색·높이는 docs/CHARACTER_SHEET.md 와 함께 관리합니다.
+   ------------------------------------------------------------------ */
+const STANDEE = {
+  kyle:  { h: 1.84, aspect: 375 / 900, color: 0x3f5e7a },  // 네이비 슬레이트
+  cloie: { h: 1.80, aspect: 348 / 900, color: 0xd96b78 },  // 코랄 핑크
+  aika:  { h: 1.78, aspect: 414 / 900, color: 0x2e8b6e },  // 에메랄드 그린
+  peika: { h: 1.79, aspect: 323 / 900, color: 0xd9822b },  // 웜 앰버
+  reika: { h: 1.80, aspect: 331 / 900, color: 0x7b4ae2 },  // 퍼플
+  seika: { h: 1.83, aspect: 360 / 900, color: 0x3b82c4 },  // 스카이 블루
+};
+const STANDEE_V = '4';
 const STANDEE_TEX = {};
 function standeeTexture(src) {
   if (!STANDEE_TEX[src]) {
@@ -1327,20 +1337,22 @@ function standeeTexture(src) {
   return STANDEE_TEX[src];
 }
 
-function makeReikaStandee(spec, index) {
+function makeStandee(spec, index) {
+  const ST = STANDEE[spec.id] || { h: 1.80, aspect: 0.39, color: new THREE.Color(spec.color).getHex() };
   const g = new THREE.Group();
   const parts = {};
 
-  const FIG_H = 1.90;                 // 일러스트 세로(월드 단위)
-  const FIG_ASPECT = 217 / 900;       // assets/standees/reika.png 비율
-  const FIG_W = FIG_H * FIG_ASPECT;
-  const BASE_R = 0.31;
+  const FIG_H = ST.h;                         // 일러스트 세로(월드 단위)
+  const FIG_ASPECT = ST.aspect;               // assets/standees/<id>.png 비율
+  let FIG_W = FIG_H * FIG_ASPECT;
+  const BASE_R = clamp(FIG_W * 0.42, 0.24, 0.34);
   const BASE_H = 0.055;
+  const PROP_K = FIG_H / 1.9;                 // 소품·노드 크기를 피규어 높이에 맞춤
 
   const creamMat = material(0xfdf6e9, { roughness: 0.52, metalness: 0.04 });
-  const purpleMat = material(RK.purple, { roughness: 0.45, metalness: 0.08 });
-  const purpleSoft = material(0xc9b4f5, { roughness: 0.5 });
-  const pearlMat = new THREE.MeshStandardMaterial({ color: RK.pearl, roughness: 0.2, metalness: 0.25 });
+  const accentMat = material(ST.color, { roughness: 0.45, metalness: 0.08 });
+  const accentSoft = material(new THREE.Color(ST.color).lerp(new THREE.Color(0xfffaf2), 0.55), { roughness: 0.5 });
+  const pearlMat = new THREE.MeshStandardMaterial({ color: 0xfff9f0, roughness: 0.2, metalness: 0.25 });
 
   /* ---------- 3D 원형 받침대 ---------- */
   const plate = new THREE.Mesh(new THREE.CylinderGeometry(BASE_R, BASE_R * 0.985, BASE_H, 56, 1), creamMat);
@@ -1351,17 +1363,17 @@ function makeReikaStandee(spec, index) {
 
   const plateBand = new THREE.Mesh(
     new THREE.CylinderGeometry(BASE_R * 1.004, BASE_R * 1.004, 0.016, 56, 1, true),
-    purpleMat,
+    accentMat,
   );
   plateBand.position.y = BASE_H * 0.42;
   g.add(plateBand);
 
-  const plateRim = new THREE.Mesh(new THREE.TorusGeometry(BASE_R * 1.002, 0.009, 8, 64), purpleMat);
+  const plateRim = new THREE.Mesh(new THREE.TorusGeometry(BASE_R * 1.002, 0.009, 8, 64), accentMat);
   plateRim.rotation.x = Math.PI / 2;
   plateRim.position.y = BASE_H;
   g.add(plateRim);
 
-  const inlay = new THREE.Mesh(new THREE.TorusGeometry(BASE_R * 0.62, 0.0045, 6, 52), purpleSoft);
+  const inlay = new THREE.Mesh(new THREE.TorusGeometry(BASE_R * 0.62, 0.0045, 6, 52), accentSoft);
   inlay.rotation.x = Math.PI / 2;
   inlay.position.y = BASE_H + 0.001;
   g.add(inlay);
@@ -1383,7 +1395,7 @@ function makeReikaStandee(spec, index) {
 
   const geo = new THREE.PlaneGeometry(FIG_W, FIG_H, 1, 1);
   geo.translate(0, FIG_H / 2, 0);      // 바닥을 원점에 둠
-  const tex = standeeTexture('assets/standees/reika.png?v=3');
+  const tex = standeeTexture(`assets/standees/${spec.id}.png?v=${STANDEE_V}`);
   const mat = new THREE.MeshBasicMaterial({
     map: tex,
     transparent: true,
@@ -1408,37 +1420,55 @@ function makeReikaStandee(spec, index) {
 
   // 애니메이션 코드 호환용 머리 노드
   const head = new THREE.Object3D();
-  head.position.y = 1.70;
+  head.position.y = FIG_H * 0.895;
   pivot.add(head);
   parts.head = head;
-  parts.headBaseY = 1.70;
+  parts.headBaseY = FIG_H * 0.895;
 
   /* ---------- 소품 피벗 (라운지 액션 호환) ---------- */
   const armR = new THREE.Object3D();
-  armR.position.set(FIG_W * 0.54, 1.16, 0.16);
+  armR.position.set(FIG_W * 0.52, FIG_H * 0.61, 0.16);
   pivot.add(armR);
   parts.armR = armR;
 
   const armL = new THREE.Object3D();
-  armL.position.set(-FIG_W * 0.54, 1.16, 0.16);
+  armL.position.set(-FIG_W * 0.52, FIG_H * 0.61, 0.16);
   pivot.add(armL);
   parts.armL = armL;
 
   const legL = new THREE.Object3D();
-  legL.position.set(-FIG_W * 0.12, 0.55, 0);
+  legL.position.set(-FIG_W * 0.11, FIG_H * 0.29, 0);
   pivot.add(legL);
   parts.legL = legL;
   const legR = new THREE.Object3D();
-  legR.position.set(FIG_W * 0.12, 0.55, 0);
+  legR.position.set(FIG_W * 0.11, FIG_H * 0.29, 0);
   pivot.add(legR);
   parts.legR = legR;
+
+  // 이미지가 실제로 로드되면 실제 종횡비·소품 위치를 한 번 더 맞춥니다.
+  const fitAspect = () => {
+    const im = tex.image;
+    if (!im || !im.width || !im.height) return false;
+    const ratio = im.width / im.height;
+    if (Math.abs(ratio - FIG_ASPECT) > 0.002) {
+      plane.scale.x = ratio / FIG_ASPECT;
+      FIG_W = FIG_H * ratio;
+      armR.position.x = FIG_W * 0.52;
+      armL.position.x = -FIG_W * 0.52;
+      legL.position.x = -FIG_W * 0.11;
+      legR.position.x = FIG_W * 0.11;
+      ball.position.x = FIG_W * 0.62;
+    }
+    return true;
+  };
+  parts.fitAspect = fitAspect;
 
   const putter = new THREE.Group();
   addCyl(putter, 0.012, 0.012, 0.62, 0, -0.3, 0, material(0x9aa3ac), { seg: 6 });
   addBox(putter, 0.12, 0.03, 0.05, 0, -0.6, 0.02, material(0x4e5862), { r: 0.01 });
   putter.position.set(0, 0, 0.06);
   putter.rotation.x = 0.25;
-  putter.scale.setScalar(0.78);
+  putter.scale.setScalar(0.78 * PROP_K);
   putter.visible = false;
   armR.add(putter);
   parts.putter = putter;
@@ -1452,13 +1482,13 @@ function makeReikaStandee(spec, index) {
   strings.position.set(0, -0.62, 0);
   racket.add(strings);
   racket.rotation.x = 0.3;
-  racket.scale.setScalar(0.78);
+  racket.scale.setScalar(0.78 * PROP_K);
   racket.visible = false;
   armR.add(racket);
   parts.racket = racket;
 
   const ball = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), material(0xffffff));
-  ball.position.set(FIG_W * 0.75, 0.06, 0.24);
+  ball.position.set(FIG_W * 0.62, 0.06, 0.24);
   ball.visible = false;
   g.add(ball);
   parts.ball = ball;
@@ -1467,20 +1497,21 @@ function makeReikaStandee(spec, index) {
   const badge = new THREE.Group();
   const plate2 = new THREE.Mesh(rboxGeo(0.086, 0.028, 0.006, 0.004, 2), creamMat);
   badge.add(plate2);
-  const dot = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), purpleMat);
+  const dot = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), accentMat);
   dot.position.set(-0.026, 0, 0.004);
   badge.add(dot);
   const bar = new THREE.Mesh(rboxGeo(0.034, 0.007, 0.004, 0.002, 2), pearlMat);
   bar.position.set(0.012, 0, 0.004);
   badge.add(bar);
   badge.position.set(0, BASE_H + 0.028, BASE_R * 0.72);
+  badge.scale.setScalar(clamp(BASE_R / 0.29, 0.86, 1.12));
   pivot.add(badge);
   parts.badge = badge;
 
   /* ---------- 선택 링 ---------- */
   const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.36, 0.44, 40),
-    new THREE.MeshBasicMaterial({ color: new THREE.Color(spec.color), transparent: true, opacity: 0 }),
+    new THREE.RingGeometry(BASE_R * 1.16, BASE_R * 1.42, 40),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(ST.color), transparent: true, opacity: 0 }),
   );
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.03;
@@ -1495,225 +1526,8 @@ function makeReikaStandee(spec, index) {
 
 /* ---------------- 미니어처 인형 ---------------- */
 function makeDoll(spec, index) {
-  if (spec.id === 'reika') return makeReikaStandee(spec, index);
-  const look = LOOKS[spec.id] || LOOKS.reika;
-  const g = new THREE.Group();
-  // 클레이 미니어처 느낌으로 옷 색을 살짝 밝힙니다.
-  const cloth = new THREE.Color(spec.color).lerp(new THREE.Color(0xfff6ea), 0.22);
-  const outfit = material(cloth, { roughness: 0.72 });
-  const skin = material(look.skin, { roughness: 0.8 });
-  const hairMat = material(look.hairColor, { roughness: 0.72 });
-  const shoe = material(0x5c5148, { roughness: 0.8 });
-
-  const parts = {};
-
-  // 다리
-  const legGeo = new THREE.CapsuleGeometry(0.072, 0.16, 4, 8);
-  [-1, 1].forEach((s) => {
-    const leg = new THREE.Mesh(legGeo, skin);
-    leg.position.set(s * 0.095, 0.23, 0);
-    leg.castShadow = true;
-    g.add(leg);
-    if (s > 0) parts.legR = leg; else parts.legL = leg;
-    const sh = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.09, 0.24), shoe);
-    sh.position.set(s * 0.095, 0.055, 0.03);
-    sh.castShadow = true;
-    g.add(sh);
-  });
-
-  // 몸통 (클레이 원피스)
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.205, 0.3, 6, 14), outfit);
-  torso.position.set(0, 0.68, 0);
-  torso.scale.set(1.02, 1, 0.92);
-  torso.castShadow = true;
-  g.add(torso);
-  parts.torso = torso;
-
-  // 치마/하의
-  const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.275, 0.19, 16, 1, true), outfit);
-  skirt.position.set(0, 0.50, 0);
-  skirt.castShadow = true;
-  g.add(skirt);
-
-  // 칼라
-  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.03, 6, 16), material(0xfdf8ef));
-  collar.position.set(0, 0.87, 0.02);
-  collar.rotation.x = Math.PI / 2;
-  g.add(collar);
-
-  // 팔 (어깨 피벗)
-  [-1, 1].forEach((s) => {
-    const pivot = new THREE.Group();
-    pivot.position.set(s * 0.262, 0.82, 0.02);
-    const armMat = material(new THREE.Color(spec.color).lerp(new THREE.Color(0x6b4b33), 0.18), { roughness: 0.74 });
-    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.058, 0.2, 4, 8), armMat);
-    arm.position.set(0, -0.13, 0);
-    arm.castShadow = true;
-    pivot.add(arm);
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.062, 10, 8), skin);
-    hand.position.set(0, -0.25, 0.01);
-    pivot.add(hand);
-    pivot.rotation.z = s * 0.16;
-    g.add(pivot);
-    if (s > 0) parts.armR = pivot; else parts.armL = pivot;
-  });
-
-  // 머리
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.252, 20, 16), skin);
-  head.position.set(0, 1.095, 0);
-  head.scale.set(1, 1.02, 0.98);
-  head.castShadow = true;
-  g.add(head);
-  parts.head = head;
-
-  // 머리카락
-  const hair = new THREE.Group();
-  // 얼굴 앞쪽(약 110°)은 비워 두고 덮는 머리카락 껍질 — 눈·볼·입이 보이게
-  const gap = 1.95;
-  const cap = new THREE.Mesh(
-    new THREE.SphereGeometry(0.263, 26, 18, Math.PI / 2 + gap / 2, Math.PI * 2 - gap, 0, Math.PI * 0.66),
-    hairMat,
-  );
-  cap.position.set(0, 1.105, -0.008);
-  cap.scale.set(1.03, 1.04, 1.03);
-  cap.castShadow = true;
-  hair.add(cap);
-  // 앞머리 (이마만 살짝)
-  const fringe = new THREE.Mesh(new THREE.SphereGeometry(0.252, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.16), hairMat);
-  fringe.position.set(0, 1.175, 0.03);
-  fringe.rotation.x = 0.30;
-  fringe.scale.set(1.02, 0.9, 1.02);
-  hair.add(fringe);
-  // 뒷머리
-  const back = new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 12), hairMat);
-  back.position.set(0, 1.05, -0.10);
-  back.scale.set(1.0, 1.06, 0.95);
-  hair.add(back);
-
-  if (look.hair === 'long' || look.hair === 'wave') {
-    const len = look.hair === 'long' ? 0.34 : 0.26;
-    const fall = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, len, 4, 12), hairMat);
-    fall.position.set(0, 0.88 - len * 0.1, -0.12);
-    fall.scale.set(1.05, 1, 0.72);
-    fall.castShadow = true;
-    hair.add(fall);
-  }
-  if (look.hair === 'ponytail' || look.hair === 'high') {
-    const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.3, 4, 10), hairMat);
-    tail.position.set(0, look.hair === 'high' ? 1.16 : 1.02, -0.28);
-    tail.rotation.x = look.hair === 'high' ? -0.5 : -0.15;
-    tail.castShadow = true;
-    hair.add(tail);
-    const tie = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.022, 6, 12), material(0xe8a0a8));
-    tie.position.set(0, look.hair === 'high' ? 1.28 : 1.13, -0.2);
-    tie.rotation.x = Math.PI / 2;
-    hair.add(tie);
-  }
-  if (look.hair === 'bun') {
-    const bun = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 12), hairMat);
-    bun.position.set(0, 1.28, -0.16);
-    hair.add(bun);
-  }
-  g.add(hair);
-  parts.hair = hair;
-
-  // 얼굴 (눈·볼·입)
-  const eyeMat = material(0x2b2620, { roughness: 0.5 });
-  [-1, 1].forEach((s) => {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), eyeMat);
-    eye.position.set(s * 0.092, 1.105, 0.248);
-    eye.scale.set(0.85, 1.1, 0.6);
-    g.add(eye);
-    const gloss = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-    gloss.position.set(s * 0.092 + 0.011, 1.118, 0.264);
-    g.add(gloss);
-  });
-  [-1, 1].forEach((s) => {
-    const blush = new THREE.Mesh(new THREE.CircleGeometry(0.038, 12), new THREE.MeshBasicMaterial({ color: 0xf3a8ab, transparent: true, opacity: 0.45 }));
-    blush.position.set(s * 0.152, 1.062, 0.228);
-    blush.rotation.y = s * 0.4;
-    g.add(blush);
-  });
-  const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.008, 6, 12, Math.PI), new THREE.MeshBasicMaterial({ color: 0xb8656b }));
-  mouth.position.set(0, 1.05, 0.246);
-  mouth.rotation.set(Math.PI, 0, 0);
-  g.add(mouth);
-
-  // 소품 (오른손)
-  const prop = new THREE.Group();
-  const propKind = look.prop;
-  if (propKind === 'mug') {
-    const m = new THREE.Group();
-    addCyl(m, 0.055, 0.05, 0.1, 0, 0.05, 0, material(0xfdfaf3), { seg: 12 });
-    const h = new THREE.Mesh(new THREE.TorusGeometry(0.032, 0.01, 6, 10), material(0xfdfaf3));
-    h.position.set(0.055, 0.055, 0);
-    h.rotation.y = Math.PI / 2;
-    m.add(h);
-    m.position.set(0.03, -0.34, 0.05);
-    prop.add(m);
-  } else if (propKind === 'clipboard') {
-    addBox(prop, 0.2, 0.26, 0.02, 0, -0.34, 0.06, material(0xd9b086), { r: 0.01 });
-    addBox(prop, 0.16, 0.2, 0.005, 0, -0.34, 0.07, material(0xfdf6e8), { r: 0.01 });
-  } else if (propKind === 'tablet') {
-    addBox(prop, 0.18, 0.24, 0.015, 0, -0.34, 0.06, material(0x4e5862), { r: 0.01 });
-  } else if (propKind === 'marker') {
-    addCyl(prop, 0.018, 0.018, 0.16, 0, -0.34, 0.06, material(0xe08a1e), { seg: 8, rz: 0.4 });
-  } else if (propKind === 'phone') {
-    addBox(prop, 0.11, 0.19, 0.015, 0, -0.34, 0.06, material(0x3d4650), { r: 0.01 });
-  }
-  parts.armR.add(prop);
-  parts.prop = prop;
-
-  // 라운지 액션 소품
-  // ⛳ 퍼터
-  const putter = new THREE.Group();
-  addCyl(putter, 0.012, 0.012, 0.62, 0, -0.3, 0, material(0x9aa3ac), { seg: 6 });
-  addBox(putter, 0.12, 0.03, 0.05, 0, -0.6, 0.02, material(0x4e5862), { r: 0.01 });
-  putter.position.set(0, 0, 0.02);
-  putter.rotation.x = 0.25;
-  putter.visible = false;
-  parts.armR.add(putter);
-  parts.putter = putter;
-
-  // 🎾 라켓
-  const racket = new THREE.Group();
-  addCyl(racket, 0.012, 0.012, 0.3, 0, -0.42, 0, material(0xc98b6b), { seg: 6 });
-  const head2 = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.016, 6, 18), material(0xd7cbb8));
-  head2.position.set(0, -0.62, 0);
-  racket.add(head2);
-  const strings = new THREE.Mesh(new THREE.CircleGeometry(0.115, 16), new THREE.MeshStandardMaterial({ color: 0xf6f2e8, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
-  strings.position.set(0, -0.62, 0);
-  racket.add(strings);
-  racket.rotation.x = 0.3;
-  racket.visible = false;
-  parts.armR.add(racket);
-  parts.racket = racket;
-
-  // ⛳ 공
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), material(0xffffff));
-  ball.position.set(0.34, 0.05, 0.3);
-  ball.visible = false;
-  g.add(ball);
-  parts.ball = ball;
-
-  // 선택 링
-  const ring = new THREE.Mesh(new THREE.RingGeometry(0.34, 0.42, 28), new THREE.MeshBasicMaterial({ color: new THREE.Color(spec.color), transparent: true, opacity: 0 }));
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.03;
-  g.add(ring);
-  parts.ring = ring;
-
-  // 바닥 그림자
-  const blob = new THREE.Mesh(new THREE.CircleGeometry(0.32, 20), new THREE.MeshBasicMaterial({ color: 0x6b533a, transparent: true, opacity: 0.16 }));
-  blob.rotation.x = -Math.PI / 2;
-  blob.position.y = 0.02;
-  g.add(blob);
-
-  g.traverse((o) => { if (o.isMesh) o.userData.agentId = spec.id; });
-
-  g.scale.setScalar(1.42);
-  g.userData = { spec, parts, index };
-  return g;
+  // 6인 비서는 모두 3등신 스탠드 피규어로 그립니다(docs/CHARACTER_SHEET.md).
+  return makeStandee(spec, index);
 }
 
 /* ---------------- 캐릭터 이동 ---------------- */
@@ -1801,7 +1615,7 @@ function updateLabels() {
     const id = el.dataset.id;
     const agent = S.byId.get(id);
     if (!agent) return;
-    const p = V(agent.group.position.x, 2.06, agent.group.position.z).project(cam);
+    const p = V(agent.group.position.x, 2.14, agent.group.position.z).project(cam);
     const visible = p.z < 1 && p.x > -1.25 && p.x < 1.25 && p.y > -1.25 && p.y < 1.25;
     const dist = S.camera.position.distanceTo(V(agent.group.position.x, 1.0, agent.group.position.z));
     const scale = clamp((scaleRef / dist) * 1.5, 0.82, 1.08);
@@ -1968,7 +1782,11 @@ function animate() {
     const st = agent.group.userData.parts.standee;
     if (st) {
       const pl = agent.group.userData.parts.plane;
-      if (pl && !pl.visible && pl.material.map && pl.material.map.image) pl.visible = true;
+      if (pl && !pl.visible && pl.material.map && pl.material.map.image) {
+        pl.visible = true;
+        const fit = agent.group.userData.parts.fitAspect;
+        if (fit) fit();
+      }
       const gp = agent.group.position;
       const want = Math.atan2(S.camera.position.x - gp.x, S.camera.position.z - gp.z) - agent.group.rotation.y;
       let d = want - st.rotation.y;
