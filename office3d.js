@@ -1148,11 +1148,11 @@ function makeReikaDoll(spec, index) {
 
   // 두피 껍질 — 머리 형태를 그대로 따라가며 얼굴 앞쪽만 비웁니다.
   const gap = 1.5;
-  const capGeo = taperEnds(latheProfile([
+  const capGeo = latheProfile([
     [0, 0.248], [0.058, 0.242], [0.098, 0.226], [0.13, 0.196],
     [0.154, 0.156], [0.168, 0.108], [0.174, 0.052], [0.175, -0.004],
     [0.172, -0.06], [0.166, -0.114], [0.16, -0.16],
-  ].reverse(), 48, gap / 2, Math.PI * 2 - gap), gap / 2, Math.PI * 2 - gap, 0.62);
+  ].reverse(), 48, gap / 2, Math.PI * 2 - gap);
   const cap = new THREE.Mesh(capGeo, hairShellMat);
   cap.scale.set(1, 1, 0.97);
   cap.castShadow = true;
@@ -1187,7 +1187,7 @@ function makeReikaDoll(spec, index) {
   const bangSpan = Math.PI * 1.05;
   const bangGeo = taperEnds(latheProfile([
     [0, 0.246], [0.062, 0.24], [0.102, 0.222], [0.134, 0.19],
-    [0.156, 0.152], [0.169, 0.112], [0.173, 0.088], [0.171, 0.08],
+    [0.157, 0.148], [0.171, 0.1], [0.176, 0.068], [0.174, 0.056],
   ].reverse(), 44, -bangSpan / 2, bangSpan), -bangSpan / 2, bangSpan, 0.45);
   const bang = new THREE.Mesh(bangGeo, hairShellMat);
   bang.scale.set(1, 1, 0.97);
