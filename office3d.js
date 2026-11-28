@@ -923,6 +923,7 @@ function makeReikaDoll(spec, index) {
   const skinMat = material(look.skin, { roughness: 0.7 });
   const hairMat = material(look.hairColor, { roughness: 0.5, side: THREE.DoubleSide });
   const hairDeepMat = material(new THREE.Color(look.hairColor).lerp(new THREE.Color(0x22180f), 0.32), { roughness: 0.55, side: THREE.DoubleSide });
+  const hairShellMat = material(look.hairColor, { roughness: 0.5, side: THREE.FrontSide });
   const purpleMat = material(RK.purple, { roughness: 0.66 });
   const purpleHiMat = material(RK.purpleHi, { roughness: 0.6 });
   const creamMat = material(RK.cream, { roughness: 0.8 });
@@ -1027,9 +1028,9 @@ function makeReikaDoll(spec, index) {
   /* ---------- 팔 ---------- */
   [-1, 1].forEach((s) => {
     const pivot = new THREE.Group();
-    pivot.position.set(s * 0.099, 0.838, 0.004);
+    pivot.position.set(s * 0.094, 0.836, 0.004);
     const sleeve = new THREE.Mesh(
-      taperedTube([[0, 0.006, 0], [s * 0.008, -0.072, 0.008], [s * 0.012, -0.142, 0.006], [s * 0.011, -0.19, 0]], 0.036, 0.025, 8, 16),
+      taperedTube([[0, 0.004, 0], [s * 0.008, -0.072, 0.008], [s * 0.012, -0.142, 0.006], [s * 0.011, -0.19, 0]], 0.032, 0.024, 8, 16),
       purpleMat,
     );
     sleeve.castShadow = true;
@@ -1152,7 +1153,7 @@ function makeReikaDoll(spec, index) {
     [0.154, 0.156], [0.168, 0.108], [0.174, 0.052], [0.175, -0.004],
     [0.172, -0.06], [0.166, -0.114], [0.16, -0.16],
   ], 48, gap / 2, Math.PI * 2 - gap);
-  const cap = new THREE.Mesh(capGeo, hairMat);
+  const cap = new THREE.Mesh(capGeo, hairShellMat);
   cap.scale.set(1, 1, 0.97);
   cap.castShadow = true;
   hair.add(cap);
@@ -1178,7 +1179,7 @@ function makeReikaDoll(spec, index) {
     }
     return curtainOuter[curtainOuter.length - 1][0];
   };
-  const curtain = new THREE.Mesh(curtainGeo, hairMat);
+  const curtain = new THREE.Mesh(curtainGeo, hairShellMat);
   curtain.castShadow = true;
   hair.add(curtain);
 
@@ -1188,7 +1189,7 @@ function makeReikaDoll(spec, index) {
     [0, 0.246], [0.062, 0.24], [0.102, 0.222], [0.134, 0.19],
     [0.156, 0.152], [0.169, 0.112], [0.173, 0.088], [0.171, 0.08],
   ], 44, -bangSpan / 2, bangSpan), -bangSpan / 2, bangSpan, 0.45);
-  const bang = new THREE.Mesh(bangGeo, hairMat);
+  const bang = new THREE.Mesh(bangGeo, hairShellMat);
   bang.scale.set(1, 1, 0.97);
   bang.castShadow = true;
   hair.add(bang);
