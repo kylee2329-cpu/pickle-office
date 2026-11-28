@@ -1864,8 +1864,10 @@ body.app {
 
 .panel-chat { max-width: 1000px; margin: 0 auto; }
 .panel-chat .chat-card {
-  /* 채팅 기록이 조금만 길어져도 위쪽이 잘리지 않도록 화면 세로 공간을 넉넉히 씁니다. */
-  height: clamp(640px, calc(100dvh - 175px), 1100px);
+  /* 채팅 기록이 조금만 길어져도 위쪽이 잘리지 않도록 화면 세로 공간을 넉넉히 씁니다.
+     (화면 높이가 충분하면 640~1100px, 짧은 노트북 화면에서는 예전처럼 520px까지만 줄여
+      입력창이 화면 밖으로 밀리지 않게 합니다.) */
+  height: clamp(520px, calc(100dvh - 175px), 1100px);
   border-radius: 26px;
   border-color: #e9dcc6;
   box-shadow: var(--shadow-sm);
