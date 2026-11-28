@@ -53,26 +53,30 @@ while rem.any():
     rem &= ~comp
 
 fig = Image.fromarray(((~bg) * 255).astype(np.uint8), "L")
-fig = fig.filter(ImageFilter.MinFilter(5)).filter(ImageFilter.GaussianBlur(1.0))
+fig = fig.filter(ImageFilter.MinFilter(7)).filter(ImageFilter.GaussianBlur(0.9))
 s = np.asarray(fig).astype(np.float32) / 255.0
-alpha = np.clip((s - 0.30) / 0.55, 0.0, 1.0)
-alpha[s >= 0.85] = 1.0
-
-# 실루엣 테두리에 남은 흰 테(스튜디오 배경 번짐)를 밴드 안에서만 제거
-band = np.asarray(
-    Image.fromarray(((~bg) * 255).astype(np.uint8), "L")
-    .filter(ImageFilter.MaxFilter(5))
-    .filter(ImageFilter.GaussianBlur(1.2))
-).astype(np.float32) / 255.0
-white = np.clip((248.0 - mn) / 22.0, 0.0, 1.0)
-alpha = alpha * (1.0 - (1.0 - white) * band)
+alpha = np.clip((s - 0.35) / 0.45, 0.0, 1.0)
 alpha[bg] = 0.0
 
 # 경계 흰 오염 제거 (halo 완화)
 af = alpha[..., None]
 rgb = (a - 255.0 * (1.0 - af)) / np.maximum(af, 1e-3)
 rgb = np.clip(rgb, 0, 255)
-rgb = np.where(af > 0.03, rgb, a)
+
+# 알파 블리드: 투명 픽셀의 RGB를 가까운 실루엣 색으로 채워 GPU 보간 시 흰 테가 생기지 않게
+known = alpha > 0.35
+for _ in range(14):
+    grew = known.copy()
+    for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        sr = np.roll(rgb, (dy, dx), axis=(0, 1))
+        sm = np.roll(known, (dy, dx), axis=(0, 1))
+        take = (~known) & sm
+        rgb[take] = sr[take]
+        grew |= sm
+    known = grew
+    if known.all():
+        break
+
 rgba = np.dstack([rgb, alpha * 255.0]).astype(np.uint8)
 
 img = Image.fromarray(rgba, "RGBA")

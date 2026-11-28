@@ -1332,7 +1332,7 @@ function makeReikaStandee(spec, index) {
   const parts = {};
 
   const FIG_H = 1.90;                 // 일러스트 세로(월드 단위)
-  const FIG_ASPECT = 218 / 900;       // assets/standees/reika.png 비율
+  const FIG_ASPECT = 217 / 900;       // assets/standees/reika.png 비율
   const FIG_W = FIG_H * FIG_ASPECT;
   const BASE_R = 0.31;
   const BASE_H = 0.055;
@@ -1383,7 +1383,7 @@ function makeReikaStandee(spec, index) {
 
   const geo = new THREE.PlaneGeometry(FIG_W, FIG_H, 1, 1);
   geo.translate(0, FIG_H / 2, 0);      // 바닥을 원점에 둠
-  const tex = standeeTexture('assets/standees/reika.png');
+  const tex = standeeTexture('assets/standees/reika.png?v=3');
   const mat = new THREE.MeshBasicMaterial({
     map: tex,
     transparent: true,
