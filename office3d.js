@@ -920,7 +920,7 @@ function makeReikaDoll(spec, index) {
   const g = new THREE.Group();
   const parts = {};
 
-  const skinMat = material(look.skin, { roughness: 0.7 });
+  const skinMat = material(new THREE.Color(look.skin).lerp(new THREE.Color(0xfff3e8), 0.35), { roughness: 0.62 });
   const hairMat = material(look.hairColor, { roughness: 0.5, side: THREE.DoubleSide });
   const hairDeepMat = material(new THREE.Color(look.hairColor).lerp(new THREE.Color(0x22180f), 0.32), { roughness: 0.55, side: THREE.DoubleSide });
   const hairShellMat = material(look.hairColor, { roughness: 0.5, side: THREE.FrontSide });
