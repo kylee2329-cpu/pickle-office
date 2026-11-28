@@ -1874,7 +1874,8 @@ body.app {
 /* 카드 안 메시지 영역은 남는 세로 공간을 전부 사용합니다.
    (예전 .messages 의 min-height / max-height: 52vh·56vh 제한을 덮어씁니다.) */
 .panel-chat .messages {
-  flex: 1 1 auto;
+  /* basis 0 이어야 멘션 줄·입력창이 눌리지 않고 메시지 영역만 늘어납니다. */
+  flex: 1 1 0;
   min-height: 0;
   max-height: none;
 }
