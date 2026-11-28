@@ -819,8 +819,469 @@ function buildLounge(scene) {
   return g;
 }
 
+/* =========================================================
+   레이카 전용 모델 (3등신 클레이 피규어 · 웨이브 긴머리)
+   다른 5명은 기존 makeDoll 그대로, 레이카만 아래 빌더를 씁니다.
+   ========================================================= */
+const RK = {
+  purple: 0x7b4ae2,
+  purpleHi: 0x9c7cf4,
+  purpleDeep: 0x5a33b8,
+  cream: 0xf9f1e2,
+  ivory: 0xfffbf3,
+  tights: 0xf2dccb,
+  shoe: 0x4b3a52,
+  pearl: 0xfff9f0,
+  eye: 0x33241d,
+  lash: 0x241a15,
+  lip: 0xc06f79,
+  blush: 0xef8f98,
+  brow: 0x4a3931,
+};
+
+// (r, y) 프로파일을 회전시켜 매끈한 몸통·머리 실루엣을 만듭니다.
+function latheProfile(profile, seg = 40) {
+  const pts = profile.map(([r, y]) => new THREE.Vector2(Math.max(0.0002, r), y));
+  return new THREE.LatheGeometry(pts, seg);
+}
+
+// 끝으로 갈수록 가늘어지는 곡선 머리카락 가닥 (튜브 단면을 진행률에 따라 줄입니다).
+function taperedTube(points, r0, r1, radial = 9, tubular = 26) {
+  const curve = new THREE.CatmullRomCurve3(points.map((p) => V(p[0], p[1], p[2])));
+  const geo = new THREE.TubeGeometry(curve, tubular, r0, radial, false);
+  const pos = geo.attributes.position;
+  const ring = radial + 1;
+  for (let i = 0; i <= tubular; i++) {
+    const t = i / tubular;
+    let cx = 0, cy = 0, cz = 0;
+    for (let j = 0; j < ring; j++) {
+      const k = i * ring + j;
+      cx += pos.getX(k); cy += pos.getY(k); cz += pos.getZ(k);
+    }
+    cx /= ring; cy /= ring; cz /= ring;
+    const taper = (r0 + (r1 - r0) * t) / r0;
+    const tip = t < 0.8 ? 1 : Math.sqrt(Math.max(0.004, 1 - ((t - 0.8) / 0.2) ** 2));
+    const f = taper * tip;
+    for (let j = 0; j < ring; j++) {
+      const k = i * ring + j;
+      pos.setXYZ(k, cx + (pos.getX(k) - cx) * f, cy + (pos.getY(k) - cy) * f, cz + (pos.getZ(k) - cz) * f);
+    }
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// 스커트에 잔주름을 넣습니다.
+function pleatGeo(geo, folds, amp) {
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    const r = Math.hypot(x, z);
+    if (r < 1e-4) continue;
+    const k = 1 + amp * Math.cos(Math.atan2(z, x) * folds);
+    pos.setXYZ(i, x * k, pos.getY(i), z * k);
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function makeReikaDoll(spec, index) {
+  const look = LOOKS.reika;
+  const g = new THREE.Group();
+  const parts = {};
+
+  const skinMat = material(look.skin, { roughness: 0.7 });
+  const hairMat = material(look.hairColor, { roughness: 0.52, side: THREE.DoubleSide });
+  const purpleMat = material(RK.purple, { roughness: 0.66 });
+  const purpleHiMat = material(RK.purpleHi, { roughness: 0.6 });
+  const purpleDeepMat = material(RK.purpleDeep, { roughness: 0.68 });
+  const creamMat = material(RK.cream, { roughness: 0.8 });
+  const ivoryMat = material(RK.ivory, { roughness: 0.74 });
+  const tightsMat = material(RK.tights, { roughness: 0.86 });
+  const shoeMat = material(RK.shoe, { roughness: 0.42, metalness: 0.1 });
+  const pearlMat = new THREE.MeshStandardMaterial({ color: RK.pearl, roughness: 0.18, metalness: 0.32 });
+  const eyeMat = material(RK.eye, { roughness: 0.26 });
+  const lashMat = material(RK.lash, { roughness: 0.4 });
+  const lipMat = material(RK.lip, { roughness: 0.42 });
+  const browMat = material(RK.brow, { roughness: 0.5 });
+  const whiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const blushMat = new THREE.MeshBasicMaterial({ color: RK.blush, transparent: true, opacity: 0.3, depthWrite: false });
+
+  /* ---------- 다리 ---------- */
+  const hipY = 0.545;
+  [-1, 1].forEach((s) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(s * 0.052, hipY, 0);
+    const leg = new THREE.Mesh(
+      taperedTube([[0, 0.012, 0], [0, -0.16, 0.005], [0, -0.33, 0.007], [0, -0.485, 0.004]], 0.051, 0.027, 8, 16),
+      tightsMat,
+    );
+    leg.castShadow = true;
+    pivot.add(leg);
+    const shoe = new THREE.Mesh(rboxGeo(0.096, 0.06, 0.168, 0.026, 3), shoeMat);
+    shoe.position.set(0, -0.514, 0.022);
+    shoe.rotation.x = -0.05;
+    shoe.castShadow = true;
+    pivot.add(shoe);
+    const heel = new THREE.Mesh(rboxGeo(0.058, 0.03, 0.038, 0.008, 2), shoeMat);
+    heel.position.set(0, -0.529, -0.05);
+    pivot.add(heel);
+    const strap = new THREE.Mesh(new THREE.TorusGeometry(0.036, 0.006, 5, 14, Math.PI * 1.1), creamMat);
+    strap.position.set(0, -0.487, 0.012);
+    strap.rotation.set(Math.PI / 2, 0, Math.PI * 0.45);
+    pivot.add(strap);
+    g.add(pivot);
+    if (s > 0) parts.legR = pivot; else parts.legL = pivot;
+  });
+
+  /* ---------- 플레어 스커트 ---------- */
+  const skirtGeo = pleatGeo(latheProfile([
+    [0.108, 0.6], [0.118, 0.552], [0.143, 0.474], [0.175, 0.406],
+    [0.202, 0.358], [0.203, 0.352], [0.15, 0.346], [0, 0.342],
+  ], 84), 14, 0.032);
+  const skirt = new THREE.Mesh(skirtGeo, purpleHiMat);
+  skirt.castShadow = true;
+  g.add(skirt);
+  // 밑단 크림 트림
+  const hem = new THREE.Mesh(new THREE.TorusGeometry(0.198, 0.0095, 6, 44), creamMat);
+  hem.position.set(0, 0.362, 0);
+  hem.rotation.x = Math.PI / 2;
+  g.add(hem);
+  // 허리 크림 벨트
+  const belt = new THREE.Mesh(new THREE.TorusGeometry(0.108, 0.014, 8, 30), creamMat);
+  belt.position.set(0, 0.606, 0);
+  belt.rotation.x = Math.PI / 2;
+  belt.scale.set(1, 0.9, 1);
+  g.add(belt);
+
+  /* ---------- 재킷 몸통 ---------- */
+  const torsoGeo = latheProfile([
+    [0.104, 0.585], [0.113, 0.598], [0.109, 0.63], [0.119, 0.674],
+    [0.137, 0.718], [0.146, 0.758], [0.143, 0.798], [0.126, 0.836],
+    [0.09, 0.862], [0.046, 0.872], [0, 0.874],
+  ], 46);
+  torsoGeo.translate(0, -0.73, 0);
+  const torso = new THREE.Mesh(torsoGeo, purpleMat);
+  torso.position.set(0, 0.73, 0);
+  torso.scale.set(1, 1, 0.88);
+  torso.castShadow = true;
+  g.add(torso);
+  parts.torso = torso;
+  parts.torsoBase = { x: 1, y: 1, z: 0.88 };
+
+  // 블라우스 V 패널 (크림)
+  const vShape = new THREE.Shape();
+  vShape.moveTo(-0.05, 0.05);
+  vShape.lineTo(0.05, 0.05);
+  vShape.lineTo(0, -0.082);
+  vShape.lineTo(-0.05, 0.05);
+  const blouse = new THREE.Mesh(new THREE.ExtrudeGeometry(vShape, {
+    depth: 0.014, bevelEnabled: true, bevelSize: 0.006, bevelThickness: 0.005, bevelSegments: 2, curveSegments: 3,
+  }), ivoryMat);
+  blouse.position.set(0, 0.812, 0.104);
+  blouse.rotation.x = 0.2;
+  g.add(blouse);
+
+  // 크림 카라 (V 위쪽 테두리)
+  [-1, 1].forEach((s) => {
+    const collar = new THREE.Mesh(taperedTube([
+      [s * 0.048, 0.868, 0.058], [s * 0.062, 0.842, 0.088], [s * 0.056, 0.806, 0.11],
+    ], 0.014, 0.008, 7, 12), creamMat);
+    g.add(collar);
+  });
+
+  // 라펠 (연보라 재킷 깃)
+  [-1, 1].forEach((s) => {
+    const lapel = new THREE.Mesh(rboxGeo(0.03, 0.15, 0.016, 0.007, 2), purpleHiMat);
+    lapel.position.set(s * 0.06, 0.795, 0.108);
+    lapel.rotation.set(0.1, s * 0.32, s * 0.3);
+    g.add(lapel);
+  });
+
+  // 단추·가슴 배지
+  [0.712, 0.664].forEach((y, i) => {
+    const btn = new THREE.Mesh(new THREE.SphereGeometry(0.0105, 10, 8), pearlMat);
+    btn.position.set(0, y, (i === 0 ? 0.122 : 0.113));
+    btn.scale.set(1, 1, 0.6);
+    g.add(btn);
+  });
+  const badge = new THREE.Group();
+  const badgePlate = new THREE.Mesh(rboxGeo(0.034, 0.019, 0.006, 0.003, 2), creamMat);
+  badge.add(badgePlate);
+  const badgeDot = new THREE.Mesh(new THREE.SphereGeometry(0.0055, 8, 6), purpleMat);
+  badgeDot.position.set(-0.009, 0, 0.004);
+  badge.add(badgeDot);
+  badge.position.set(0.058, 0.775, 0.116);
+  badge.rotation.y = 0.3;
+  g.add(badge);
+  parts.badge = badge;
+
+  // 어깨 볼륨
+  [-1, 1].forEach((s) => {
+    const pad = new THREE.Mesh(new THREE.SphereGeometry(0.049, 14, 12), purpleMat);
+    pad.position.set(s * 0.117, 0.838, 0);
+    pad.scale.set(1, 0.92, 0.95);
+    g.add(pad);
+  });
+
+  /* ---------- 팔 ---------- */
+  [-1, 1].forEach((s) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(s * 0.124, 0.836, 0.004);
+    const sleeve = new THREE.Mesh(
+      taperedTube([[0, 0.004, 0], [s * 0.012, -0.08, 0.008], [s * 0.016, -0.155, 0.006], [s * 0.014, -0.208, 0]], 0.046, 0.03, 8, 16),
+      purpleMat,
+    );
+    sleeve.castShadow = true;
+    pivot.add(sleeve);
+    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.031, 0.031, 0.016, 14), creamMat);
+    cuff.position.set(s * 0.014, -0.214, 0);
+    pivot.add(cuff);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.041, 12, 10), skinMat);
+    hand.position.set(s * 0.015, -0.248, 0.004);
+    hand.scale.set(0.92, 1, 1);
+    hand.castShadow = true;
+    pivot.add(hand);
+    pivot.rotation.z = s * 0.14;
+    g.add(pivot);
+    if (s > 0) parts.armR = pivot; else parts.armL = pivot;
+  });
+
+  /* ---------- 목 ---------- */
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.047, 0.075, 14), skinMat);
+  neck.position.set(0, 0.888, 0.002);
+  g.add(neck);
+
+  /* ---------- 머리 ---------- */
+  const headGroup = new THREE.Group();
+  headGroup.position.set(0, 1.155, 0);
+  g.add(headGroup);
+  parts.head = headGroup;
+  parts.headBaseY = 1.155;
+
+  const headGeo = latheProfile([
+    [0, -0.238], [0.038, -0.232], [0.075, -0.219], [0.112, -0.198],
+    [0.142, -0.166], [0.163, -0.124], [0.176, -0.072], [0.183, -0.016],
+    [0.185, 0.038], [0.18, 0.092], [0.168, 0.142], [0.146, 0.184],
+    [0.112, 0.216], [0.068, 0.234], [0, 0.24],
+  ], 44);
+  const head = new THREE.Mesh(headGeo, skinMat);
+  head.scale.set(1, 1, 0.95);
+  head.castShadow = true;
+  headGroup.add(head);
+
+  // 귀
+  [-1, 1].forEach((s) => {
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.027, 10, 8), skinMat);
+    ear.position.set(s * 0.177, -0.03, -0.012);
+    ear.scale.set(0.5, 1, 0.8);
+    headGroup.add(ear);
+  });
+
+  /* ---------- 얼굴 ---------- */
+  [-1, 1].forEach((s) => {
+    // 눈동자
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.048, 16, 14), eyeMat);
+    eye.position.set(s * 0.078, -0.052, 0.146);
+    eye.scale.set(0.92, 1.12, 0.62);
+    headGroup.add(eye);
+    // 속눈썹 라인 (눈 위쪽)
+    const lash = new THREE.Mesh(new THREE.SphereGeometry(0.049, 14, 10), lashMat);
+    lash.position.set(s * 0.078, -0.014, 0.145);
+    lash.scale.set(0.98, 0.3, 0.58);
+    headGroup.add(lash);
+    // 눈꼬리
+    const flick = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), lashMat);
+    flick.position.set(s * 0.116, -0.016, 0.14);
+    flick.scale.set(0.75, 0.4, 0.5);
+    headGroup.add(flick);
+    // 캐치라이트
+    const big = new THREE.Mesh(new THREE.SphereGeometry(0.0145, 8, 8), whiteMat);
+    big.position.set(s * 0.066, -0.034, 0.181);
+    big.scale.set(0.85, 1, 0.45);
+    headGroup.add(big);
+    const small = new THREE.Mesh(new THREE.SphereGeometry(0.0075, 8, 6), whiteMat);
+    small.position.set(s * 0.094, -0.074, 0.176);
+    small.scale.set(1, 1, 0.5);
+    headGroup.add(small);
+    // 눈썹
+    const brow = new THREE.Mesh(taperedTube([
+      [s * 0.042, 0.012, 0.166], [s * 0.074, 0.03, 0.171], [s * 0.106, 0.018, 0.154],
+    ], 0.0075, 0.0035, 6, 12), browMat);
+    headGroup.add(brow);
+    // 볼터치
+    const blush = new THREE.Mesh(new THREE.SphereGeometry(0.031, 12, 10), blushMat);
+    blush.position.set(s * 0.125, -0.093, 0.12);
+    blush.scale.set(1, 0.72, 0.22);
+    blush.rotation.y = s * 0.5;
+    headGroup.add(blush);
+  });
+  // 코
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.0115, 8, 8), skinMat);
+  nose.position.set(0, -0.092, 0.172);
+  nose.scale.set(0.85, 0.8, 0.6);
+  headGroup.add(nose);
+  // 입 (부드러운 미소)
+  const mouth = new THREE.Mesh(taperedTube([
+    [-0.023, -0.133, 0.163], [-0.011, -0.142, 0.169], [0, -0.145, 0.171], [0.011, -0.142, 0.169], [0.023, -0.133, 0.163],
+  ], 0.0055, 0.0045, 6, 16), lipMat);
+  headGroup.add(mouth);
+
+  /* ---------- 웨이브 긴머리 ---------- */
+  const hair = new THREE.Group();
+  headGroup.add(hair);
+  parts.hair = hair;
+
+  // 두피 껍질 (얼굴 앞쪽은 비워 둠)
+  const gap = 1.95;
+  const cap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.197, 34, 22, Math.PI / 2 + gap / 2, Math.PI * 2 - gap, 0, Math.PI * 0.82),
+    hairMat,
+  );
+  cap.position.set(0, 0.012, -0.004);
+  cap.scale.set(1.0, 1.0, 0.98);
+  cap.castShadow = true;
+  hair.add(cap);
+  // 뒷머리 볼륨
+  const backMass = new THREE.Mesh(new THREE.SphereGeometry(0.163, 22, 18), hairMat);
+  backMass.position.set(0, -0.045, -0.075);
+  backMass.scale.set(1.06, 1.3, 0.9);
+  backMass.castShadow = true;
+  hair.add(backMass);
+
+  // 정수리 윤기 가닥
+  const sheen = new THREE.Mesh(taperedTube([
+    [0.05, 0.2, 0.03], [0.02, 0.215, 0.075], [-0.03, 0.198, 0.1], [-0.075, 0.168, 0.1],
+  ], 0.02, 0.008, 6, 16), material(new THREE.Color(look.hairColor).lerp(new THREE.Color(0xffe4c8), 0.28), { roughness: 0.42 }));
+  hair.add(sheen);
+
+  // 앞머리 (옆으로 흐르는 사이드 뱅)
+  hair.add(new THREE.Mesh(taperedTube([
+    [0.058, 0.182, 0.078], [0.022, 0.176, 0.136], [-0.04, 0.146, 0.166], [-0.1, 0.102, 0.16], [-0.146, 0.05, 0.124],
+  ], 0.057, 0.016, 8, 28), hairMat));
+  hair.add(new THREE.Mesh(taperedTube([
+    [-0.02, 0.202, 0.048], [-0.076, 0.184, 0.116], [-0.132, 0.15, 0.146], [-0.168, 0.098, 0.118],
+  ], 0.05, 0.014, 8, 26), hairMat));
+  hair.add(new THREE.Mesh(taperedTube([
+    [0.076, 0.19, 0.062], [0.108, 0.166, 0.116], [0.122, 0.126, 0.142], [0.114, 0.086, 0.14],
+  ], 0.038, 0.011, 8, 24), hairMat));
+
+  // 얼굴 옆을 감싸는 가닥
+  [-1, 1].forEach((s) => {
+    hair.add(new THREE.Mesh(taperedTube([
+      [s * 0.143, 0.128, 0.074], [s * 0.176, 0.02, 0.094], [s * 0.184, -0.09, 0.074],
+      [s * 0.172, -0.18, 0.054], [s * 0.156, -0.248, 0.042],
+    ], 0.045, 0.013, 8, 26), hairMat));
+    hair.add(new THREE.Mesh(taperedTube([
+      [s * 0.128, 0.098, 0.104], [s * 0.156, -0.002, 0.116], [s * 0.166, -0.112, 0.1], [s * 0.16, -0.196, 0.082],
+    ], 0.024, 0.008, 7, 22), hairMat));
+  });
+
+  // 층진 웨이브 뒷머리
+  for (let i = -2; i <= 2; i++) {
+    const x0 = i * 0.046;
+    const sw = Math.sign(i) || 1;
+    hair.add(new THREE.Mesh(taperedTube([
+      [x0 * 1.05, 0.152, -0.099],
+      [x0 * 1.5, 0.05, -0.146],
+      [x0 * 1.72 + 0.014 * sw, -0.084, -0.132],
+      [x0 * 1.86, -0.235, -0.152],
+      [x0 * 1.7, -0.395 - 0.018 * Math.abs(i), -0.124],
+    ], 0.052, 0.014, 8, 28), hairMat));
+  }
+  // 어깨 앞으로 흐르는 긴 가닥
+  [-1, 1].forEach((s) => {
+    hair.add(new THREE.Mesh(taperedTube([
+      [s * 0.132, 0.098, 0.018], [s * 0.166, -0.02, 0.034], [s * 0.176, -0.16, 0.02],
+      [s * 0.162, -0.3, 0.0], [s * 0.148, -0.398, -0.022],
+    ], 0.037, 0.011, 8, 26), hairMat));
+  });
+
+  // 보라 헤어핀 + 진주
+  const pin = new THREE.Group();
+  const pinBar = new THREE.Mesh(rboxGeo(0.058, 0.016, 0.013, 0.006, 2), purpleHiMat);
+  pin.add(pinBar);
+  for (let i = -1; i <= 1; i++) {
+    const p = new THREE.Mesh(new THREE.SphereGeometry(0.0105, 10, 8), pearlMat);
+    p.position.set(i * 0.018, 0, 0.008);
+    pin.add(p);
+  }
+  pin.position.set(0.158, 0.118, 0.038);
+  pin.rotation.set(0.1, 0.55, 0.42);
+  hair.add(pin);
+
+  /* ---------- 소품 (오른손) ---------- */
+  const prop = new THREE.Group();
+  const m = new THREE.Group();
+  addCyl(m, 0.045, 0.039, 0.078, 0, 0.042, 0, ivoryMat, { seg: 14 });
+  const band = new THREE.Mesh(new THREE.TorusGeometry(0.0455, 0.007, 6, 16), purpleMat);
+  band.position.set(0, 0.072, 0);
+  band.rotation.x = Math.PI / 2;
+  m.add(band);
+  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.008, 6, 12), ivoryMat);
+  handle.position.set(0.048, 0.042, 0);
+  handle.rotation.y = Math.PI / 2;
+  m.add(handle);
+  m.position.set(0.012, -0.292, 0.048);
+  prop.add(m);
+  parts.armR.add(prop);
+  parts.prop = prop;
+
+  // 라운지 액션 소품 (기존과 호환)
+  const putter = new THREE.Group();
+  addCyl(putter, 0.012, 0.012, 0.62, 0, -0.3, 0, material(0x9aa3ac), { seg: 6 });
+  addBox(putter, 0.12, 0.03, 0.05, 0, -0.6, 0.02, material(0x4e5862), { r: 0.01 });
+  putter.position.set(0, 0, 0.02);
+  putter.rotation.x = 0.25;
+  putter.visible = false;
+  parts.armR.add(putter);
+  parts.putter = putter;
+
+  const racket = new THREE.Group();
+  addCyl(racket, 0.012, 0.012, 0.3, 0, -0.42, 0, material(0xc98b6b), { seg: 6 });
+  const rHead = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.016, 6, 18), material(0xd7cbb8));
+  rHead.position.set(0, -0.62, 0);
+  racket.add(rHead);
+  const strings = new THREE.Mesh(new THREE.CircleGeometry(0.115, 16), new THREE.MeshStandardMaterial({ color: 0xf6f2e8, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
+  strings.position.set(0, -0.62, 0);
+  racket.add(strings);
+  racket.rotation.x = 0.3;
+  racket.visible = false;
+  parts.armR.add(racket);
+  parts.racket = racket;
+
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), material(0xffffff));
+  ball.position.set(0.34, 0.05, 0.3);
+  ball.visible = false;
+  g.add(ball);
+  parts.ball = ball;
+
+  // 선택 링
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.34, 0.42, 28), new THREE.MeshBasicMaterial({ color: new THREE.Color(spec.color), transparent: true, opacity: 0 }));
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.03;
+  g.add(ring);
+  parts.ring = ring;
+
+  // 바닥 그림자
+  const blob = new THREE.Mesh(new THREE.CircleGeometry(0.32, 20), new THREE.MeshBasicMaterial({ color: 0x6b533a, transparent: true, opacity: 0.16 }));
+  blob.rotation.x = -Math.PI / 2;
+  blob.position.y = 0.02;
+  g.add(blob);
+
+  g.traverse((o) => { if (o.isMesh) o.userData.agentId = spec.id; });
+
+  g.scale.setScalar(1.42);
+  g.userData = { spec, parts, index };
+  return g;
+}
+
 /* ---------------- 미니어처 인형 ---------------- */
 function makeDoll(spec, index) {
+  if (spec.id === 'reika') return makeReikaDoll(spec, index);
   const look = LOOKS[spec.id] || LOOKS.reika;
   const g = new THREE.Group();
   // 클레이 미니어처 느낌으로 옷 색을 살짝 밝힙니다.
@@ -1244,8 +1705,9 @@ function stepIdle(agent, t) {
     return;
   }
   const breathe = 1 + Math.sin(t * 1.9 + ph) * 0.018;
-  p.torso.scale.set(1.02, breathe, 0.92);
-  p.head.position.y = 1.09 + Math.sin(t * 1.9 + ph + 0.4) * 0.008;
+  const tb = p.torsoBase || { x: 1.02, y: 1, z: 0.92 };
+  p.torso.scale.set(tb.x, tb.y * breathe, tb.z);
+  p.head.position.y = (p.headBaseY == null ? 1.09 : p.headBaseY) + Math.sin(t * 1.9 + ph + 0.4) * 0.008;
   agent.group.rotation.z = Math.sin(t * 0.9 + ph) * 0.018;
   if (p.armL) p.armL.rotation.z = 0.16 + Math.sin(t * 1.3 + ph) * 0.05;
   if (p.armR) p.armR.rotation.z = -0.16 - Math.sin(t * 1.3 + ph + 0.6) * 0.05;
@@ -1505,6 +1967,25 @@ window.PO3D = {
   },
   setMotion(on) { S.motion = !!on; },
   setSelected(id) { S.selected = id; },
+  // 카메라를 특정 비서에게 붙입니다. (검증·스크린샷용: yaw는 캐릭터 정면 기준 상대각)
+  focusAgent(id, opts) {
+    const a = S.byId.get(id);
+    if (!a || !S.camera || !S.controls) return false;
+    const o = opts || {};
+    const target = V(a.group.position.x, o.targetY == null ? 1.15 : o.targetY, a.group.position.z);
+    const dist = o.dist == null ? 4 : o.dist;
+    const yaw = a.group.rotation.y + (o.yaw == null ? 0 : o.yaw);
+    const pitch = o.pitch == null ? 0.16 : o.pitch;
+    S.camera.position.set(
+      target.x + Math.sin(yaw) * Math.cos(pitch) * dist,
+      target.y + Math.sin(pitch) * dist,
+      target.z + Math.cos(yaw) * Math.cos(pitch) * dist,
+    );
+    S.controls.target.copy(target);
+    S.controls.update();
+    S.userMoved = true;
+    return true;
+  },
   setRest(map) {
     if (!map) return;
     Object.entries(map).forEach(([id, info]) => { S.rest[id] = info && info.kind ? info.kind : ''; });
