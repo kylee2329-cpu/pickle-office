@@ -20,6 +20,18 @@
     return one.length > SUMMARY_LEN ? one.slice(0, SUMMARY_LEN - 1).trimEnd() + '…' : one;
   };
   const timeHM = (ts) => new Date(ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  // 방금·3분 전·어제 같은 짧은 상대 시각 (비서현황·상세 카드)
+  const relTime = (ts) => {
+    const n = Number(ts) || 0;
+    if (!n) return '기록 없음';
+    const diff = Date.now() - n;
+    if (diff < 0) return '방금';
+    if (diff < 60 * 1000) return '방금';
+    if (diff < 60 * 60 * 1000) return `${Math.floor(diff / 60000)}분 전`;
+    if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / 3600000)}시간 전`;
+    const d = new Date(n);
+    return `${d.getMonth() + 1}월 ${d.getDate()}일 ${timeHM(n)}`;
+  };
   const dayKey = (ts) => new Date(ts).toDateString();
   const dayLabel = (ts) => {
     const d = new Date(ts), now = new Date();
@@ -194,6 +206,11 @@
     replyTo: null,
     bubbleIdx: 0,
     rest: {},             // 캐릭터별 지금 하는 쉼(☕ ⛳ 🎾 🔋) — 라운지 미니 배지
+    panel: 'office',      // 오피스 맵 | 회의실 | 작업실 | 비서현황 | 메모
+    mode3d: false,        // Three.js 3D 오피스가 떴는지
+    notes: [],            // /notes.json (공용 메모)
+    notesSig: '',
+    notesTimer: null,
     pollTimer: null,
     presenceTimer: null,
     presencePollTimer: null,
@@ -292,47 +309,117 @@
     return idx % 6;
   }
 
+  // 2026-11-28 v4: 3D 미니어처 위에 얹는 이름표·얼굴 썸네일·말풍선 레이어.
+  // 위치(transform)는 office3d.js가 매 프레임 3D 좌표를 투영해 넣고, 여기서는 내용만 그립니다.
   function renderCritters() {
     const el = $('#critters');
-    el.innerHTML = CHARS.map((c, i) => {
-      const p = seatPos(c.id);
+    el.innerHTML = CHARS.map((c) => {
       return `<button class="critter" type="button" data-id="${c.id}"
-        style="--x:${p.x}%;--y:${p.y}%;--size:${c.size}px;--delay:-${(i * 0.8).toFixed(1)}s;--sway-delay:-${(i * 1.1).toFixed(1)}s;--fc:${c.color}"
+        style="--fc:${c.color}"
         aria-label="${c.name} 비서 ${c.rank}순위, ${ROOMS[seatOf(c.id).room].name}, 역할 보기">
         <span class="bubble" data-bubble="${c.id}"></span>
-        <span class="body">${faceHTML(c, 'face-map')}</span>
         <span class="lounge-badge" data-badge="${c.id}" aria-hidden="true"></span>
+        <span class="body">${faceHTML(c, 'face-map')}</span>
         <span class="name-tag" style="--tag-c:${c.color}"><b>${c.name}</b></span>
       </button>`;
     }).join('');
     updateSelection();
   }
 
+  /* ---------------- 3D 오피스 연결 ---------------- */
+  // app.js는 데이터(방·상태·말풍선)를, office3d.js는 장면·이동·투영을 맡습니다.
+  function pushRoomsTo3D() {
+    if (!state.mode3d || !window.PO3D) return;
+    const map = {};
+    CHARS.forEach((c) => { map[c.id] = seatOf(c.id).room; });
+    window.PO3D.setRooms(map);
+  }
+
+  function showStageNote(title, body) {
+    const stage = $('#map');
+    const note = $('#stageNote');
+    if (!stage || !note) return;
+    stage.classList.add('is-fallback');
+    stage.classList.remove('is-ready');
+    note.innerHTML = `<b>${esc(title)}</b>${body}`;
+    note.hidden = false;
+  }
+
+  function start3D() {
+    const stage = $('#map');
+    const canvas = $('#office3d');
+    if (!stage || !canvas) return;
+    if (!window.PO3D) {
+      // 모듈(CDN)이 아직/끝내 오지 않았습니다.
+      start3D.tries = (start3D.tries || 0) + 1;
+      if (start3D.tries < 24) { setTimeout(start3D, 500); return; }
+      showStageNote('3D 오피스를 불러오지 못했어요',
+        'Three.js CDN이 막혔거나 네트워크가 느린 것 같아요. 아래 <b>비서 목록</b>에서 방·업무를 보고 이동시킬 수 있고, 회의실 탭의 채팅은 그대로 동작합니다.');
+      return;
+    }
+    const ok = window.PO3D.start({
+      canvas,
+      stage,
+      agents: CHARS.map((c) => ({ id: c.id, name: c.name, color: c.color, room: seatOf(c.id).room })),
+      onSelect: (id) => { if (byId[id]) selectChar(id); },
+    });
+    if (ok === false) { start3D.tries = 99; return; }
+  }
+
+  function on3DReady() {
+    state.mode3d = true;
+    const stage = $('#map');
+    stage?.classList.add('is-ready');
+    stage?.classList.remove('is-fallback');
+    const note = $('#stageNote');
+    if (note) note.hidden = true;
+    pushRoomsTo3D();
+    window.PO3D?.setRest?.(state.rest);
+    window.PO3D?.setMotion?.(!motionOff());
+    document.body.classList.add('has-3d');
+  }
+
+  function on3DError(e) {
+    const reason = (e && e.detail && e.detail.reason) || '';
+    showStageNote('3D 오피스를 켤 수 없어요',
+      `${esc(reason)}<br>아래 <b>비서 목록</b>에서 방·업무를 보고 이동시킬 수 있어요. 채팅과 다른 탭은 그대로 동작합니다.`);
+  }
+
   function updateCritterPositions() {
     CHARS.forEach((c) => {
       const btn = $(`.critter[data-id="${c.id}"]`);
       if (!btn) return;
-      const p = seatPos(c.id);
-      const moved = btn.style.getPropertyValue('--x') !== p.x + '%' || btn.style.getPropertyValue('--y') !== p.y + '%';
-      btn.style.setProperty('--x', p.x + '%');
-      btn.style.setProperty('--y', p.y + '%');
       btn.setAttribute('aria-label', `${c.name} 비서 ${c.rank}순위, ${ROOMS[seatOf(c.id).room].name}, 역할 보기`);
-      // 실제 방 이동이 오면 유휴 오프셋을 즉시 지우고 새 자리에서 다시 시작합니다.
-      if (moved) {
-        resetIdle(c.id);
-        setTimeout(schedulePlaceBubbles, 900);
+      // 3D 모드에서는 office3d.js가 매 프레임 위치를 넣으므로 여기서 좌표를 쓰지 않습니다.
+      if (!state.mode3d) {
+        const p = seatPos(c.id);
+        const moved = btn.style.getPropertyValue('--x') !== p.x + '%' || btn.style.getPropertyValue('--y') !== p.y + '%';
+        btn.style.setProperty('--x', p.x + '%');
+        btn.style.setProperty('--y', p.y + '%');
+        if (moved) {
+          resetIdle(c.id);
+          setTimeout(schedulePlaceBubbles, 900);
+        }
       }
       // 라운지가 아니면 미니 액션 배지를 내리고, 라운지로 돌아오면 다시 올립니다.
       syncRest(c.id);
     });
+    pushRoomsTo3D();
+    renderStatusBoard();
   }
 
   function updateScale() {
     const map = $('#map');
+    if (!map) return;
+    if (state.mode3d) {
+      window.PO3D?.resize?.();
+      schedulePlaceBubbles();
+      return;
+    }
     const w = map.clientWidth || 900;
     const cs = clamp(w / 1020, 0.3, 1);
     state.cs = cs;
-    $('.critters').style.setProperty('--cs', cs.toFixed(3));
+    $('.critters')?.style.setProperty('--cs', cs.toFixed(3));
     schedulePlaceBubbles();
   }
 
@@ -348,6 +435,7 @@
     catch (_) { return false; }
   };
   const setIdleOffset = (id, x, y) => {
+    if (state.mode3d) return;
     const btn = $(`.critter[data-id="${id}"]`);
     if (btn) btn.style.translate = `${x.toFixed(1)}px ${y.toFixed(1)}px`;
   };
@@ -369,6 +457,7 @@
   }
 
   function idleStep(id) {
+    if (state.mode3d) return;
     if (idleStatic() || document.hidden) return;
     // 상세 카드가 열려 있거나 캐릭터를 선택·누르는 중이면 건드리지 않습니다.
     if (state.selected || state.roomInfo) return;
@@ -390,6 +479,7 @@
   }
 
   function resumeIdle() {
+    if (state.mode3d) return;
     CHARS.forEach((c, i) => scheduleIdle(c.id, 2200 + i * 1100 + rand(0, 900)));
   }
 
@@ -402,10 +492,11 @@
   function updateSelection() {
     $$('.critter').forEach((b) => b.classList.toggle('is-selected', b.dataset.id === state.selected));
     $$('.char-chip').forEach((b) => b.classList.toggle('is-selected', b.dataset.id === state.selected));
-    $('#map').classList.toggle('selecting', !!state.selected);
+    $('#map')?.classList.toggle('selecting', !!state.selected);
+    window.PO3D?.setSelected?.(state.selected || null);
     $('#stageHint').textContent = state.selected
-      ? `${byId[state.selected].name} 비서를 선택했어요 · 이동할 방을 눌러 보세요.`
-      : '비서를 눌러 역할을 보고, 방을 눌러 이동시키세요.';
+      ? `${byId[state.selected].name} 비서를 선택했어요 · 방 이름을 눌러 이동시키세요.`
+      : '비서를 눌러 역할을 보고, 방 이름을 눌러 이동시키세요.';
   }
 
   function selectChar(id) {
@@ -438,6 +529,7 @@
             </div>
             <p class="detail-role"><b>${c.title}</b> · ${c.role}</p>
             ${ag && ag.task && st ? `<p class="detail-task">“${esc(ag.task)}”</p>` : ''}
+            ${ag && ag.updatedAt ? `<p class="detail-when">최근 활동 ${relTime(ag.updatedAt)}</p>` : ''}
             <div class="move-row"><span>이동</span>
               ${ROOM_ORDER.map((r) => `<button class="move-btn${r === room ? ' is-here' : ''}" type="button" data-move="${c.id}" data-room="${r}">${ROOMS[r].name}</button>`).join('')}
             </div>
@@ -577,6 +669,7 @@
     if (!info || state.rest[id] === info) return;
     state.rest[id] = info;
     syncRest(id);
+    window.PO3D?.setRest?.({ [id]: info });
   }
 
   const bubbleUntil = {};
@@ -696,6 +789,7 @@
 
   function renderCharBar() {
     const el = $('#charBar');
+    if (!el) return;
     el.innerHTML = CHARS.map((c) => {
       const room = seatOf(c.id).room;
       const on = state.conn === 'live' && state.online[c.id];
@@ -704,6 +798,327 @@
         <span class="meta"><span class="nm">${c.name}</span><span class="rm">${c.rank}순위 · ${ROOMS[room].name}</span></span>
       </button>`;
     }).join('');
+    updateOfficeHero();
+  }
+
+  /* ---------------- 오피스 맵 히어로 ---------------- */
+  function updateOfficeHero() {
+    const el = $('#officeTitle');
+    if (!el) return;
+    const byRoom = ROOM_ORDER.map((r) => ({ r, n: CHARS.filter((c) => seatOf(c.id).room === r).length }))
+      .filter((x) => x.n > 0);
+    const total = CHARS.length;
+    if (byRoom.length === 1) {
+      el.textContent = `대표님, 지금 ${ROOMS[byRoom[0].r].name}에 ${byRoom[0].n}명이 모여 있어요`;
+    } else {
+      el.textContent = `대표님, 지금 ${total}명이 ${byRoom.length}개 방에 나뉘어 있어요`;
+    }
+    const lead = $('#officeLead');
+    if (lead) {
+      lead.textContent = byRoom.map((x) => `${ROOMS[x.r].name} ${x.n}명`).join(' · ')
+        + ' — 방 안의 비서를 눌러 보세요. 지금 하는 일과 방 이동을 바로 볼 수 있어요.';
+    }
+  }
+
+  /* ---------------- 탭 전환 ---------------- */
+  const PANELS = ['office', 'chat', 'work', 'status', 'memo'];
+
+  function setPanel(name, opts = {}) {
+    const panel = PANELS.includes(name) ? name : 'office';
+    state.panel = panel;
+    $$('.navtab').forEach((t) => {
+      const on = t.dataset.panel === panel;
+      t.classList.toggle('is-active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    PANELS.forEach((k) => {
+      const el = $(`#panel-${k}`);
+      if (el) el.hidden = k !== panel;
+    });
+    if (panel === 'chat') {
+      renderMessages();
+      state.unread.all = 0; state.unread.meet = 0; state.unread.work = 0;
+      updateBadges();
+    }
+    if (panel === 'work') renderRoutines();
+    if (panel === 'status') renderStatusBoard();
+    if (panel === 'memo') {
+      renderNotes();
+      loadNotes(true);
+      const who = $('#memoWho');
+      if (who && who.options.length && !who.dataset.ready) { who.dataset.ready = '1'; who.value = DEFAULT_SENDER; }
+    }
+    if (panel === 'office') {
+      window.PO3D?.resize?.();
+      schedulePlaceBubbles();
+    }
+    if (!opts.silent && location.hash.replace('#', '') !== panel) {
+      try { history.replaceState(null, '', `#${panel}`); } catch (_) {}
+    }
+  }
+
+  function wireTabs() {
+    $('#navTabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('.navtab');
+      if (!btn) return;
+      setPanel(btn.dataset.panel);
+    });
+    // 키보드 좌우 이동
+    $('#navTabs').addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      const cur = PANELS.indexOf(state.panel);
+      const next = (cur + (e.key === 'ArrowRight' ? 1 : PANELS.length - 1)) % PANELS.length;
+      setPanel(PANELS[next]);
+      $(`.navtab[data-panel="${PANELS[next]}"]`)?.focus();
+    });
+  }
+
+  /* ---------------- 작업실 · 자동 가동 스케줄 ---------------- */
+  // scheduled-actions 와 같은 실제 루틴입니다(대표님 보고용). 다음 실행은 브라우저에서 계산한 예상치입니다.
+  const ROUTINES = [
+    {
+      icon: '☀️', title: 'Aside 모닝 브리핑 · KYLE 전달', time: '평일 08:15',
+      desc: 'Gmail의 [모닝 브리핑] 원문을 확인해 KYLE 님 비서에게 그대로 전달하고, 전달 결과를 대표님께도 짧게 알려요. (05분 전 준비)',
+      who: '레이카', days: [1, 2, 3, 4, 5], at: [[8, 15]],
+    },
+    {
+      icon: '🥚', title: '에그만 데일리 브리핑', time: '평일 09:10',
+      desc: '네이버 메일 스마트스토어·Gmail·슬랙·노션·원드라이브를 훑어 주문·출고·재고·CS를 한 장으로 정리해 드려요.',
+      who: '레이카', days: [1, 2, 3, 4, 5], at: [[9, 10]],
+    },
+    {
+      icon: '📨', title: '텔레그램 현황 취합 · KYLE 보고', time: '평일 09:30 · 14:00 · 18:30',
+      desc: '텔레그램(@Sg29_bot)과 에그만 진행 현황을 연동된 소스에서 취합해 KYLE 님 비서에게 보고해요.',
+      who: '레이카', days: [1, 2, 3, 4, 5], at: [[9, 30], [14, 0], [18, 30]],
+    },
+    {
+      icon: '🏢', title: '합동 비서실 5분 감시', time: '5분 간격',
+      desc: '새 메시지와 @멘션을 확인하고, 읽음 위치(/reads)와 방 상태(/agents)를 갱신해요. 이 화면의 3D 미니어처도 그 값을 따라 움직여요.',
+      who: '레이카', every: 5,
+    },
+    {
+      icon: '🌙', title: '밤 하루 브리핑 · 포인트 보고', time: '매일 23:50',
+      desc: '하루 전체 마감 브리핑과 총 나간 포인트(일별·주별·월별)를 집계해 보고해요. 23:40부터 사전 집계해요.',
+      who: '레이카', days: [0, 1, 2, 3, 4, 5, 6], at: [[23, 50]],
+    },
+    {
+      icon: '🌤', title: '아침 브리핑', time: '매일 08:21',
+      desc: '밤사이 소식과 오늘 일정을 대표님 상황에 맞춰 훑어, 지금 결정할 것과 제가 도울 일을 추려 알려 드려요.',
+      who: '레이카', days: [0, 1, 2, 3, 4, 5, 6], at: [[8, 21]], flexible: true,
+    },
+  ];
+
+  function nextRunOf(rt, now) {
+    if (rt.every) {
+      const d = new Date(now.getTime() + rt.every * 60000);
+      d.setSeconds(0, 0);
+      return d;
+    }
+    if (!rt.at || !rt.days) return null;
+    for (let day = 0; day < 9; day++) {
+      for (const [h, m] of rt.at) {
+        const d = new Date(now);
+        d.setDate(now.getDate() + day);
+        d.setHours(h, m, 0, 0);
+        if (d.getTime() <= now.getTime() + 3000) continue;
+        if (!rt.days.includes(d.getDay())) continue;
+        return d;
+      }
+    }
+    return null;
+  }
+
+  const nextLabel = (dt, rt) => {
+    if (!dt) return '일정 없음';
+    const now = new Date();
+    const sameDay = dt.toDateString() === now.toDateString();
+    const tmr = new Date(now); tmr.setDate(now.getDate() + 1);
+    const isTmr = dt.toDateString() === tmr.toDateString();
+    const day = sameDay ? '오늘' : isTmr ? '내일' : `${dt.getMonth() + 1}/${dt.getDate()}`;
+    return `${day} ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}${rt.flexible ? ' (여유 실행)' : ''}`;
+  };
+
+  function renderRoutines() {
+    const el = $('#routineList');
+    if (!el) return;
+    const now = new Date();
+    el.innerHTML = ROUTINES.map((rt) => {
+      const next = nextRunOf(rt, now);
+      return `<article class="routine">
+        <div class="routine-top">
+          <h3 class="routine-title"><span aria-hidden="true">${rt.icon}</span>${esc(rt.title)}</h3>
+          <span class="routine-time">${esc(rt.time)}</span>
+        </div>
+        <p class="routine-desc">${esc(rt.desc)}</p>
+        <div class="routine-foot-row">
+          <span class="routine-next">다음 실행 <b>${nextLabel(next, rt)}</b></span>
+          <span class="routine-who">👤 ${esc(rt.who)}</span>
+        </div>
+      </article>`;
+    }).join('');
+  }
+
+  /* ---------------- 비서현황 보드 ---------------- */
+  function renderStatusBoard() {
+    const el = $('#statusBoard');
+    if (!el) return;
+    el.innerHTML = CHARS.map((c) => {
+      const room = seatOf(c.id).room;
+      const ag = state.conn === 'live' ? (state.agents[c.id] || null) : null;
+      const st = ag && STATUS[ag.status] ? STATUS[ag.status] : null;
+      const online = state.conn === 'live' && state.online[c.id];
+      const task = ag && ag.task ? ag.task : (state.conn === 'live' ? '상태 문구가 아직 없어요' : c.quote);
+      const when = ag && ag.updatedAt ? `최근 활동 ${relTime(ag.updatedAt)}` : (state.conn === 'live' ? '기록 없음' : '데모 표시');
+      return `<article class="status-card" style="--fc:${c.color}">
+        <div class="status-avatar"><img src="assets/avatars/${c.id}.png?v=${AVATAR_V}" alt="" width="384" height="384" loading="lazy" /></div>
+        <div class="status-main">
+          <div class="status-name">${c.name}${online ? '<span class="on-air" title="접속 중"></span>' : ''}</div>
+          <div class="status-role">${c.rank}순위 · ${esc(c.title)}</div>
+          <div class="status-chips">
+            <span class="chip room-${room}">${ROOMS[room].icon} ${ROOMS[room].name}</span>
+            ${st ? `<span class="chip status-${esc(ag.status)}">${st.icon} ${st.label}</span>` : ''}
+          </div>
+          <p class="status-task">${esc(task)}</p>
+          <div class="status-when">🕒 ${when}</div>
+        </div>
+      </article>`;
+    }).join('');
+    const sub = $('#statusSub');
+    if (sub) {
+      const rooms = ROOM_ORDER.map((r) => `${ROOMS[r].name} ${CHARS.filter((c) => seatOf(c.id).room === r).length}명`).join(' · ');
+      sub.textContent = `${state.conn === 'live' ? '실시간 DB 연결 · 3초마다 갱신' : '데모 모드 · 이 브라우저 기준'} — ${rooms}`;
+    }
+  }
+
+  /* ---------------- 메모 (/notes.json) ---------------- */
+  // 기존 /messages·/agents·/reads 는 건드리지 않고, /notes 만 따로 읽고 씁니다.
+  const LS_NOTES = 'po.notes.v1';
+
+  function normNotes(data) {
+    const list = [];
+    if (!data || typeof data !== 'object') return list;
+    Object.entries(data).forEach(([key, v]) => {
+      if (!v || typeof v !== 'object' || !v.text) return;
+      const author = v.author ? String(v.author).slice(0, 40) : 'owner';
+      const name = v.name ? String(v.name).slice(0, 40)
+        : (byId[author] ? byId[author].name : (author === OWNER.id ? OWNER.name : author));
+      list.push({ key: v.key ? String(v.key) : key, author, name, text: String(v.text).slice(0, 1000), ts: Number(v.ts) || 0 });
+    });
+    return list.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  }
+
+  async function loadNotes(force) {
+    if (state.conn === 'live' && state.fb) {
+      try {
+        const res = await fetch(`${state.fb}/notes.json`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const list = normNotes(await res.json());
+        const sig = list.map((n) => `${n.key}:${n.ts}:${n.text}`).join('|');
+        if (!force && sig === state.notesSig) return;
+        state.notesSig = sig;
+        state.notes = list;
+        renderNotes();
+      } catch (_) { /* 메모가 없어도 나머지는 그대로 */ }
+      return;
+    }
+    const saved = normNotes(readJSON(LS_NOTES, []));
+    if (!force && !state.notes.length) {
+      state.notes = saved;
+      renderNotes();
+    }
+  }
+
+  function saveLocalNotes() {
+    const obj = {};
+    state.notes.forEach((n, i) => { obj[n.key || `n${i}`] = { author: n.author, name: n.name, text: n.text, ts: n.ts }; });
+    writeJSON(LS_NOTES, obj);
+  }
+
+  function renderNotes() {
+    const el = $('#memoList');
+    if (!el) return;
+    if (!state.notes.length) {
+      el.innerHTML = `<div class="memo-empty">아직 남긴 메모가 없어요.<br>결정된 것·다음에 할 일을 한 줄씩 남겨 보세요.</div>`;
+    } else {
+      el.innerHTML = state.notes.slice().reverse().map((n) => {
+        const c = byId[n.author];
+        return `<article class="memo-item" style="--fc:${c ? c.color : '#8a5a30'}" data-note-key="${esc(n.key || '')}">
+          <div class="memo-body">
+            <p class="memo-text">${esc(n.text)}</p>
+            <div class="memo-meta"><span class="memo-author">${esc(n.name || (c ? c.name : '대표님'))}</span><span>·</span><span>${n.ts ? relTime(n.ts) : '방금'}</span></div>
+          </div>
+          <button class="memo-del" type="button" data-note-del="${esc(n.key || '')}" aria-label="메모 삭제" title="메모 삭제">✕</button>
+        </article>`;
+      }).join('');
+    }
+    const foot = $('#memoFoot');
+    if (foot) {
+      foot.textContent = state.conn === 'live'
+        ? '실시간 DB /notes.json 에 저장됩니다 · 여섯 비서도 같은 메모를 봅니다'
+        : '데모 모드 · 이 브라우저에만 저장됩니다 (실시간 DB에 연결하면 여섯 비서와 공유돼요)';
+    }
+  }
+
+  async function submitNote(e) {
+    e.preventDefault();
+    const ta = $('#memoText');
+    const text = (ta.value || '').replace(/\s+$/, '');
+    if (!text.trim()) { ta.focus(); return; }
+    const sender = senderOf($('#memoWho').value) || OWNER;
+    const note = { id: uid(), author: sender.id, name: sender.name, text, ts: Date.now() };
+    ta.value = '';
+    if (state.conn === 'live' && state.fb) {
+      try {
+        const res = await fetch(`${state.fb}/notes.json`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(note),
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        await loadNotes(true);
+        toast('메모를 남겼어요');
+      } catch (_) {
+        toast('메모 저장에 실패했어요 · 연결을 확인해 주세요');
+      }
+      return;
+    }
+    state.notes.push({ ...note, key: note.id });
+    saveLocalNotes();
+    renderNotes();
+    toast('메모를 남겼어요');
+  }
+
+  async function removeNote(key) {
+    if (!key) return;
+    if (!window.confirm('이 메모를 지울까요? 되돌릴 수 없어요.')) return;
+    if (state.conn === 'live' && state.fb) {
+      try {
+        const res = await fetch(`${state.fb}/notes/${encodeURIComponent(key)}.json`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        await loadNotes(true);
+        toast('메모를 지웠어요');
+      } catch (_) { toast('메모를 지우지 못했어요 · 연결을 확인해 주세요'); }
+      return;
+    }
+    state.notes = state.notes.filter((n) => n.key !== key);
+    saveLocalNotes();
+    renderNotes();
+    toast('메모를 지웠어요');
+  }
+
+  function initMemo() {
+    const who = $('#memoWho');
+    if (who) who.innerHTML = SENDERS.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+    const form = $('#memoForm');
+    if (form) form.addEventListener('submit', submitNote);
+    const list = $('#memoList');
+    if (list) {
+      list.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-note-del]');
+        if (btn) removeNote(btn.dataset.noteDel);
+      });
+    }
+    loadNotes(true);
   }
 
   /* ---------------- messages ---------------- */
@@ -1089,6 +1504,12 @@
       b.hidden = n === 0;
       b.textContent = n > 9 ? '9+' : String(n);
     });
+    const navBadge = $('#chatBadge');
+    if (navBadge) {
+      const total = (state.unread.all || 0) + (state.unread.meet || 0) + (state.unread.work || 0);
+      navBadge.hidden = total === 0;
+      navBadge.textContent = total > 9 ? '9+' : String(total);
+    }
   }
 
   /* ---------------- typing ---------------- */
@@ -1252,7 +1673,11 @@
       stopSync();
     }
     renderCharBar();
+    renderStatusBoard();
     syncRestAll();
+    renderNotes();
+    if (mode === 'live') loadNotes(true);
+    updateOfficeHero();
   }
 
   async function loadLiveMessages() {
@@ -1387,6 +1812,7 @@
       if (state.selected) renderDetail();
     }
     speak.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 2).forEach((s) => setBubble(s.id, s.task, true));
+    if (state.panel === 'status') renderStatusBoard();
   }
 
   async function loadAgents() {
@@ -1524,6 +1950,8 @@
     state.agentSig = {};
     state.agentBubble = {};
     state.online = {};
+    state.notes = [];
+    state.notesSig = '';
     try {
       localStorage.removeItem(LS.fb);
       localStorage.setItem(LS.demo, '1');
@@ -1532,6 +1960,7 @@
     setStatus('', '로컬 데모 모드로 돌아왔습니다.');
     refreshShareLink();
     renderMessages();
+    loadNotes(true);
     if (!opts.quiet) toast('데모 모드로 돌아왔어요');
   }
 
@@ -1583,25 +2012,20 @@
       if (btn) { selectChar(btn.dataset.id); }
     });
 
-    $$('.room-hit').forEach((hit) => {
-      hit.addEventListener('click', () => {
-        const room = hit.dataset.room;
+    // 3D 방 이름표: 선택한 비서가 있으면 그 방으로 이동, 없으면 방 정보 카드
+    $$('.zone-pin').forEach((pin) => {
+      pin.addEventListener('click', () => {
+        const room = pin.dataset.room;
         if (state.selected) {
           moveChar(state.selected, room);
         } else {
           state.roomInfo = state.roomInfo === room ? null : room;
           renderLegend();
           renderDetail();
+          syncZonePins();
         }
       });
-      hit.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); hit.dispatchEvent(new MouseEvent('click', { bubbles: true })); }
-      });
-      hit.setAttribute('tabindex', '0');
-      hit.setAttribute('role', 'button');
-      hit.setAttribute('aria-label', `${ROOMS[hit.dataset.room].name} 보기`);
     });
-
     $('#mapLegend').addEventListener('click', (e) => {
       const b = e.target.closest('[data-room-info]');
       if (!b) return;
@@ -1632,7 +2056,55 @@
     });
 
     window.addEventListener('resize', updateScale);
+
+    // 3D 컨트롤
+    $('#motionToggle').addEventListener('click', () => {
+      state.motionOff = !state.motionOff;
+      try { localStorage.setItem('po.motion.v1', state.motionOff ? '0' : '1'); } catch (_) {}
+      syncMotionPill();
+      window.PO3D?.setMotion?.(!state.motionOff);
+      toast(state.motionOff ? '움직임을 껐어요' : '움직임을 켰어요');
+    });
+    $('#viewReset').addEventListener('click', () => {
+      window.PO3D?.resetView?.();
+      toast('시점을 처음 위치로 돌렸어요');
+    });
+    $('#callMeeting').addEventListener('click', callMeetingDemo);
+
+    syncMotionPill();
     updateScale();
+  }
+
+  function motionOff() { return !!state.motionOff; }
+
+  function syncMotionPill() {
+    const btn = $('#motionToggle');
+    if (!btn) return;
+    const on = !motionOff();
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    $('#motionLabel').textContent = on ? 'ON' : 'OFF';
+  }
+
+  function syncZonePins() {
+    $$('.zone-pin').forEach((p) => p.classList.toggle('is-active', p.dataset.room === state.roomInfo && !state.selected));
+  }
+
+  // 📞 회의 소집 — 보고 있는 화면에서만 움직이는 데모입니다. /agents 에는 쓰지 않습니다.
+  function callMeetingDemo() {
+    if (!state.mode3d) { toast('3D 오피스가 켜져 있을 때 쓸 수 있어요'); return; }
+    const ok = window.PO3D?.callMeeting?.();
+    if (!ok) return;
+    toast('📞 회의 소집 · 여섯 비서가 회의실로 모입니다');
+    state.selected = null;
+    state.roomInfo = null;
+    updateSelection();
+    renderLegend();
+    renderDetail();
+    syncZonePins();
+    setTimeout(() => setBubble('cloie', '회의 시작합니다. 안건은 채팅에 올려 주세요.', true), 2800);
+    setTimeout(() => setBubble('kyle', '네, 우선순위부터 정리해 둘게요.', true), 4100);
+    setTimeout(() => setBubble('reika', '에그만 재고·CS 현황은 제가 보고할게요.', true), 5300);
   }
 
   function wireChat() {
@@ -1801,14 +2273,28 @@
     seedIfEmpty();
     renderCritters();
     initRest();
-    startIdleMotion();
     renderLegend();
     renderCharBar();
     wireMap();
     wireChat();
     wireSettings();
+    wireTabs();
+    initMemo();
     setConnState('demo');
     renderMessages();
+
+    // 3D 미니어처 오피스 (Three.js ES module). 실패 시 폴백 안내 + 카드·목록 모드로 계속 동작합니다.
+    window.addEventListener('po3d:ready', on3DReady);
+    window.addEventListener('po3d:error', on3DError);
+    start3D();
+
+    // #office #chat #work #status #memo 로 바로 열기
+    const pHash = location.hash.replace('#', '');
+    if (PANELS.includes(pHash)) setPanel(pHash, { silent: true });
+    window.addEventListener('hashchange', () => {
+      const h = location.hash.replace('#', '');
+      if (PANELS.includes(h) && h !== state.panel) setPanel(h, { silent: true });
+    });
 
     // 첫 방문 느낌: 잠시 뒤 인사 버블
     setTimeout(() => setBubble('reika', '지도에서 저를 눌러 보세요!', true), 900);
@@ -1838,6 +2324,13 @@
 
     setTimeout(tickBubbles, 1900);
     setInterval(tickBubbles, 7000);
+
+    // 3D 이름표가 매 프레임 움직이므로, 떠 있는 말풍선은 주기적으로 자리를 다시 잡습니다.
+    setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      if (!state.mode3d) return;
+      if ($$('.bubble.is-on').length) placeBubbles();
+    }, 800);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

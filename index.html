@@ -3,129 +3,206 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>합동 비서실 · Shared Pickle Office</title>
-<meta name="description" content="6인 피클 합동 비서실 — 사무실 지도에서 비서를 만나고, 방을 옮기고, @멘션으로 대화하세요." />
-<meta name="theme-color" content="#f7f4ee" />
-<meta property="og:title" content="합동 비서실 · Shared Pickle Office" />
-<meta property="og:description" content="6인 비서팀의 사무실 지도와 채팅. 지도에서 비서를 눌러 역할을 보고 방을 옮겨 보세요." />
+<title>합동 비서실 · 6인 비서팀</title>
+<meta name="description" content="6인 피클 합동 비서실 — 3D 미니어처 오피스에서 비서를 만나고, 회의실 채팅·작업실 루틴·비서현황·공용 메모를 한 화면에서 봅니다." />
+<meta name="theme-color" content="#f6efe3" />
+<meta property="og:title" content="합동 비서실 · 6인 비서팀" />
+<meta property="og:description" content="직접 돌려보는 3D 미니어처 오피스와 실시간 채팅, 자동 가동 스케줄까지 한 곳에." />
 <meta property="og:type" content="website" />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%237048e8'/%3E%3Cpath d='M20 16h24v32H20z' fill='none' stroke='%23fff' stroke-width='5' stroke-linejoin='round'/%3E%3Cpath d='M20 32h24' stroke='%23fff' stroke-width='5'/%3E%3C/svg%3E" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23a9702f'/%3E%3Ctext x='32' y='45' font-size='34' text-anchor='middle'%3E%F0%9F%8F%A2%3C/text%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles.css?v=20261128q" />
+<link rel="stylesheet" href="styles.css?v=20261128v4" />
 </head>
-<body>
-<a class="skip" href="#chat">채팅으로 건너뛰기</a>
+<body class="app">
+<a class="skip" href="#panel-office">본문으로 건너뛰기</a>
 
-<header class="topbar">
-  <div class="brand">
-    <span class="brand-mark" aria-hidden="true">🏢</span>
-    <div class="brand-text">
-      <h1>합동 비서실</h1>
-      <p>Shared Pickle Office · 6인 비서팀</p>
+<!-- ================= HEADER (크림 톤 · 탭) ================= -->
+<header class="appbar">
+  <div class="appbar-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">👑</span>
+      <div class="brand-text">
+        <h1>합동 비서실</h1>
+        <p><span class="live-dot" aria-hidden="true"></span>대표님 전용 · 6인 비서팀</p>
+      </div>
+    </div>
+    <div class="appbar-side">
+      <button id="connPill" class="pill" type="button" title="실시간 DB 연결 상태">
+        <span class="dot" aria-hidden="true"></span><span id="connLabel">데모 모드</span>
+      </button>
+      <button id="openSettings" class="icon-btn" type="button" aria-label="⚙️ 실시간 DB 연결 설정" title="실시간 DB 연결">
+        <span aria-hidden="true">⚙️</span>
+      </button>
     </div>
   </div>
-  <div class="topbar-actions">
-    <button id="connPill" class="pill" type="button" title="실시간 DB 연결 상태">
-      <span class="dot" aria-hidden="true"></span><span id="connLabel">데모 모드</span>
+
+  <nav class="navtabs" id="navTabs" role="tablist" aria-label="비서실 메뉴">
+    <button class="navtab is-active" type="button" role="tab" aria-selected="true" data-panel="office">
+      <span class="nt-ico" aria-hidden="true">🗺️</span><span class="nt-lbl">오피스 맵</span>
     </button>
-    <button id="openSettings" class="icon-btn" type="button" aria-label="⚙️ 실시간 DB 연결 설정" title="실시간 DB 연결">
-      <span aria-hidden="true">⚙️</span>
+    <button class="navtab" type="button" role="tab" aria-selected="false" data-panel="chat">
+      <span class="nt-ico" aria-hidden="true">💬</span><span class="nt-lbl">회의실</span>
+      <span class="nt-badge" id="chatBadge" hidden></span>
     </button>
-  </div>
+    <button class="navtab" type="button" role="tab" aria-selected="false" data-panel="work">
+      <span class="nt-ico" aria-hidden="true">📋</span><span class="nt-lbl">작업실</span>
+    </button>
+    <button class="navtab" type="button" role="tab" aria-selected="false" data-panel="status">
+      <span class="nt-ico" aria-hidden="true">📊</span><span class="nt-lbl">비서현황</span>
+    </button>
+    <button class="navtab" type="button" role="tab" aria-selected="false" data-panel="memo">
+      <span class="nt-ico" aria-hidden="true">📝</span><span class="nt-lbl">메모</span>
+    </button>
+  </nav>
 </header>
 
-<main class="layout">
-  <!-- ================= OFFICE MAP ================= -->
-  <section class="stage-card" aria-labelledby="stageTitle">
-    <div class="stage-head">
-      <h2 id="stageTitle">사무실 지도</h2>
-      <p class="stage-hint" id="stageHint">비서를 눌러 역할을 보고, 방을 눌러 이동시키세요.</p>
+<main class="app-main">
+  <!-- ================= 오피스 맵 ================= -->
+  <section class="panel panel-office" id="panel-office" role="tabpanel" aria-labelledby="officeTab">
+    <div class="hero-card">
+      <span class="hero-pill"><span aria-hidden="true">👑</span> 합동 비서실 본부</span>
+      <h2 id="officeTitle">대표님, 6명이 3개 방에서 대기 중이에요</h2>
+      <p id="officeLead">방 안의 비서를 눌러 보세요. 지금 있는 방과 하는 일을 바로 볼 수 있어요.</p>
     </div>
 
-    <div class="map" id="map">
-      <div class="map-bg" aria-hidden="true"></div>
+    <div class="control-row">
+      <button id="motionToggle" class="ctrl-pill is-on" type="button" aria-pressed="true" title="숨쉬기·라운지 액션 모션을 켜고 끕니다">
+        <span aria-hidden="true">✨</span> 움직임 <b id="motionLabel">ON</b>
+      </button>
+      <button id="viewReset" class="ctrl-pill" type="button" title="카메라 시점을 처음 위치로 되돌립니다">
+        <span aria-hidden="true">🔄</span> 시점 리셋
+      </button>
+      <button id="callMeeting" class="ctrl-pill accent" type="button" title="여섯 비서가 회의실로 모이는 데모 애니메이션 (실제 방 상태는 바뀌지 않아요)">
+        <span aria-hidden="true">📞</span> 회의 소집
+      </button>
+      <span class="ctrl-hint" id="stageHint">비서를 눌러 역할을 보고, 방 이름을 눌러 이동시키세요.</span>
+    </div>
 
-      <!-- 3D 세미리얼 사무실 배경(1402x1122) 위에 얹는 투명 존. 좌: 메인 라운지, 우상: 회의실, 우하: 작업실 -->
-      <svg class="zones" viewBox="0 0 1402 1122" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
-        <rect class="room-hit" data-room="main" x="82" y="100" width="502" height="890" rx="26" />
-        <rect class="room-hit" data-room="meet" x="628" y="58" width="624" height="462" rx="24" />
-        <rect class="room-hit" data-room="work" x="638" y="562" width="648" height="440" rx="24" />
-      </svg>
-
-      <div class="zone-labels" aria-hidden="true">
-        <span class="zone-label" style="--lx:6.6%;--ly:6.2%;--zc:#b07a45"><i class="zdot"></i>메인 라운지</span>
-        <span class="zone-label" style="--lx:45.4%;--ly:3.1%;--zc:#7a5aa8"><i class="zdot"></i>회의실</span>
-        <span class="zone-label" style="--lx:49.4%;--ly:51.4%;--zc:#2f7d6c"><i class="zdot"></i>작업실</span>
+    <div class="stage3d" id="map">
+      <canvas id="office3d" aria-label="3D 미니어처 오피스 — 드래그로 돌리고 휠·핀치로 확대할 수 있습니다" role="img"></canvas>
+      <div class="zone-pins" id="zonePins" aria-label="방 이동">
+        <button class="zone-pin" type="button" data-room="work">🗂 작업실</button>
+        <button class="zone-pin" type="button" data-room="meet">📋 회의실</button>
+        <button class="zone-pin" type="button" data-room="main">☕ 라운지</button>
       </div>
-
       <div class="critters" id="critters" aria-label="비서 캐릭터"></div>
+      <div class="stage-badge" aria-hidden="true">🧱 클레이 미니어처 · 직접 돌려보는 3D · 드래그로 360°</div>
+      <div class="stage-note" id="stageNote" hidden></div>
+      <div class="stage-loading" id="stageLoading">
+        <span class="spin" aria-hidden="true"></span>
+        <b>3D 오피스를 세우는 중…</b>
+        <span>클레이 소품과 여섯 비서를 배치하고 있어요</span>
+      </div>
     </div>
 
-    <div class="map-legend" id="mapLegend" aria-label="방 목록"></div>
-
+    <div class="room-legend" id="mapLegend" aria-label="방 목록"></div>
     <div class="detail" id="detail" hidden></div>
-
     <div class="char-bar" id="charBar" aria-label="비서 목록"></div>
   </section>
 
-  <!-- ================= CHAT ================= -->
-  <section class="chat-card" id="chat" aria-labelledby="chatTitle">
-    <div class="chat-head">
-      <div>
-        <h2 id="chatTitle">비서실 채팅</h2>
-        <p class="chat-sub" id="chatSub">@이름 으로 특정 비서를 부를 수 있어요.</p>
+  <!-- ================= 회의실 (기존 실시간 채팅 100% 보존) ================= -->
+  <section class="panel panel-chat" id="panel-chat" role="tabpanel" hidden>
+    <div class="chat-card" id="chat" aria-labelledby="chatTitle">
+      <div class="chat-head">
+        <div>
+          <h2 id="chatTitle">💬 회의실 채팅</h2>
+          <p class="chat-sub" id="chatSub">@이름 으로 특정 비서를 부를 수 있어요 · 3초마다 새 메시지 확인</p>
+        </div>
+        <span class="chat-live" id="chatLive"><span class="dot" aria-hidden="true"></span>기록 중</span>
       </div>
-      <span class="chat-live" id="chatLive"><span class="dot" aria-hidden="true"></span>기록 중</span>
-    </div>
 
-    <div class="tabs" role="tablist" aria-label="채팅 채널">
-      <button class="tab is-active" role="tab" aria-selected="true" data-tab="all">#전체<span class="badge" hidden></span></button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="meet">#회의실<span class="badge" hidden></span></button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="work">#작업실<span class="badge" hidden></span></button>
-    </div>
-
-    <div class="messages" id="messages" role="log" aria-live="polite" aria-label="메시지 목록"></div>
-    <div class="typing" id="typing" hidden>
-      <span class="typing-avatar"></span>
-      <span class="typing-text">입력 중</span>
-      <span class="dots"><i></i><i></i><i></i></span>
-    </div>
-
-    <div class="mention-row" id="mentionRow" aria-label="멘션 빠른 입력 (전체·비서별)"></div>
-
-    <div class="reply-bar" id="replyBar" hidden aria-live="polite">
-      <span class="rb-ico" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="15" height="15" focusable="false">
-          <path d="M9 6 4 11l5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M4 11h9a6 6 0 0 1 6 6v1" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-        </svg>
-      </span>
-      <span class="rb-main">
-        <span class="rb-who"><b id="replyWho"></b>에게 답글</span>
-        <span class="rb-text" id="replyText"></span>
-      </span>
-      <button class="rb-cancel" id="replyCancel" type="button" aria-label="답글 취소" title="답글 취소 (Esc)">✕</button>
-    </div>
-
-    <form class="composer" id="composer" autocomplete="off">
-      <label class="sender-wrap" title="보내는 사람">
-        <span class="sr-only">보내는 사람</span>
-        <select id="sender" aria-label="보내는 사람"></select>
-      </label>
-      <div class="input-wrap">
-        <textarea id="input" rows="1" placeholder="메시지 입력 · @전체 나 @레이카 처럼 멘션" aria-label="메시지 입력" maxlength="500"></textarea>
+      <div class="tabs" role="tablist" aria-label="채팅 채널">
+        <button class="tab is-active" role="tab" aria-selected="true" data-tab="all">#전체<span class="badge" hidden></span></button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="meet">#회의실<span class="badge" hidden></span></button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="work">#작업실<span class="badge" hidden></span></button>
       </div>
-      <button class="send" type="submit" aria-label="보내기">
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12 2-12 2z" fill="currentColor"/></svg>
-      </button>
-    </form>
+
+      <div class="messages" id="messages" role="log" aria-live="polite" aria-label="메시지 목록"></div>
+      <div class="typing" id="typing" hidden>
+        <span class="typing-avatar"></span>
+        <span class="typing-text">입력 중</span>
+        <span class="dots"><i></i><i></i><i></i></span>
+      </div>
+
+      <div class="mention-row" id="mentionRow" aria-label="멘션 빠른 입력 (전체·비서별)"></div>
+
+      <div class="reply-bar" id="replyBar" hidden aria-live="polite">
+        <span class="rb-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="15" height="15" focusable="false">
+            <path d="M9 6 4 11l5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M4 11h9a6 6 0 0 1 6 6v1" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="rb-main">
+          <span class="rb-who"><b id="replyWho"></b>에게 답글</span>
+          <span class="rb-text" id="replyText"></span>
+        </span>
+        <button class="rb-cancel" id="replyCancel" type="button" aria-label="답글 취소" title="답글 취소 (Esc)">✕</button>
+      </div>
+
+      <form class="composer" id="composer" autocomplete="off">
+        <label class="sender-wrap" title="보내는 사람">
+          <span class="sr-only">보내는 사람</span>
+          <select id="sender" aria-label="보내는 사람"></select>
+        </label>
+        <div class="input-wrap">
+          <textarea id="input" rows="1" placeholder="메시지 입력 · @전체 나 @레이카 처럼 멘션" aria-label="메시지 입력" maxlength="500"></textarea>
+        </div>
+        <button class="send" type="submit" aria-label="보내기">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12 2-12 2z" fill="currentColor"/></svg>
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ================= 작업실 (자동 가동 스케줄) ================= -->
+  <section class="panel panel-work" id="panel-work" role="tabpanel" hidden>
+    <div class="section-card">
+      <span class="section-pill"><span aria-hidden="true">📋</span> 작업실 · 자동 가동 스케줄</span>
+      <h2>매일 돌아가는 정기 루틴</h2>
+      <p class="section-sub">대표님이 따로 챙기지 않아도 지녀가 정해진 시각에 처리해요. (평일·주말 구분은 각 카드에 표시)</p>
+    </div>
+    <div class="routine-list" id="routineList"></div>
+    <p class="routine-foot" id="routineFoot">지금 시각 기준 다음 실행 예정을 함께 보여 드려요 · 시각은 한국 시간(KST)</p>
+  </section>
+
+  <!-- ================= 비서현황 ================= -->
+  <section class="panel panel-status" id="panel-status" role="tabpanel" hidden>
+    <div class="section-card">
+      <span class="section-pill"><span aria-hidden="true">📊</span> 비서현황 · 실시간</span>
+      <h2>여섯 비서의 지금</h2>
+      <p class="section-sub" id="statusSub">방·상태·하는 일을 3초마다 새로 확인해요.</p>
+    </div>
+    <div class="status-board" id="statusBoard"></div>
+  </section>
+
+  <!-- ================= 메모 ================= -->
+  <section class="panel panel-memo" id="panel-memo" role="tabpanel" hidden>
+    <div class="section-card">
+      <span class="section-pill"><span aria-hidden="true">📝</span> 공용 메모 · 결정사항</span>
+      <h2>대표님과 비서실이 함께 보는 보드</h2>
+      <p class="section-sub">결정된 것, 다음에 할 일, 잊지 말 것을 짧게 남겨 두세요. 실시간 DB에 연결되면 여섯 비서도 같은 메모를 봅니다.</p>
+    </div>
+    <div class="memo-card">
+      <div class="memo-list" id="memoList" aria-live="polite"></div>
+      <form class="memo-form" id="memoForm">
+        <label class="memo-who">
+          <span class="sr-only">남기는 사람</span>
+          <select id="memoWho" aria-label="남기는 사람"></select>
+        </label>
+        <textarea id="memoText" rows="2" maxlength="300" placeholder="예) 이번 주 금요일까지 에그만 재고 실사 · 담당 레이카"></textarea>
+        <button class="memo-save" type="submit">남기기</button>
+      </form>
+      <p class="memo-foot" id="memoFoot"></p>
+    </div>
   </section>
 </main>
 
 <footer class="foot">
-  <p>합동 비서실 · 6인 피클 비서팀을 위한 사무실</p>
+  <p>합동 비서실 · 6인 피클 비서팀을 위한 3D 사무실</p>
   <p class="foot-dim">기본으로 합동 비서실 실시간 DB에 연결됩니다 · ⚙️ 에서 다른 DB로 바꾸거나 데모 모드로 전환</p>
 </footer>
 
@@ -190,20 +267,23 @@ PUT  /presence/&lt;clientId&gt;.json
 GET  /reads.json                (여섯 비서별 읽음 위치 · 말풍선 읽음 배지)
 PUT  /reads/&lt;id&gt;.json
   { "lastKey": "-Nxxx", "lastTs": 1730000000000, "updatedAt": 1730000000000 }
-PATCH /messages/&lt;key&gt;.json      (메시지별로 표시하려면)
-  { "readBy": { "reika": 1730000000000 } }</pre>
+
+GET  /notes.json                (📝 공용 메모 · 선택 경로)
+POST /notes.json
+  { "id": "...", "author": "owner|reika|...", "name": "대표님", "text": "...", "ts": 1730000000000 }
+DELETE /notes/&lt;key&gt;.json        (메모 카드의 ✕ · 확인 후 삭제)</pre>
           <p><b>비서 id</b> · <code>kyle</code> <code>cloie</code> <code>aika</code> <code>peika</code> <code>reika</code> <code>seika</code>
-            (앱이 3초마다 <code>/agents.json</code>을 업데이트하며, 방이 바뀌면 캐릭터가 그 방으로 이동하고 <code>task</code>가 말풍선으로 보입니다.)</p>
-          <p><b>읽음 확인</b> · 말풍선 아래 <code>✓ N/6 읽음</code> 배지는 <code>/reads/&lt;id&gt;</code>의 <code>lastTs</code>·<code>lastKey</code> 또는
-            <code>/messages/&lt;key&gt;/readBy/&lt;id&gt;</code>로 판정합니다(비서 6인 기준, 대표님 제외 · 보낸 비서 본인은 자동 읽음).
-            배지를 누르면 읽은 사람·미확인 목록이 열리고, 3초 폴링으로 새로고침 없이 숫자가 올라갑니다.</p>
+            (앱이 3초마다 <code>/agents.json</code>을 업데이트하며, 방이 바뀌면 3D 미니어처가 그 방으로 걸어갑니다.)</p>
+          <p><b>3D 오피스</b> · Three.js(ES module, jsdelivr CDN)로 그립니다. CDN 차단이나 WebGL 미지원이면
+            안내 문구와 함께 카드·목록 모드로 자동 전환됩니다.</p>
           <p><b>권장 규칙</b> (테스트용 · 공개 링크이므로 개인정보는 넣지 마세요)</p>
           <pre>{
   "rules": {
     "messages": { ".read": true, ".write": true, ".indexOn": "ts" },
     "agents":   { ".read": true, ".write": true },
     "presence": { ".read": true, ".write": true },
-    "reads":    { ".read": true, ".write": true }
+    "reads":    { ".read": true, ".write": true },
+    "notes":    { ".read": true, ".write": true }
   }
 }</pre>
           <p class="hint">같은 URL을 <code>#fb=&lt;인코딩된 URL&gt;</code> 로 붙이면 링크만으로 연결됩니다. 연결 후 3초마다 새 메시지를 가져옵니다.</p>
@@ -219,6 +299,16 @@ PATCH /messages/&lt;key&gt;.json      (메시지별로 표시하려면)
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-<script src="app.js?v=20261128q"></script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+<script src="app.js?v=20261128v4"></script>
+<script type="module" src="office3d.js?v=20261128v4"></script>
 </body>
 </html>
