@@ -1332,7 +1332,7 @@ function makeReikaStandee(spec, index) {
   const parts = {};
 
   const FIG_H = 1.90;                 // 일러스트 세로(월드 단위)
-  const FIG_ASPECT = 219 / 900;       // assets/standees/reika.png 비율
+  const FIG_ASPECT = 218 / 900;       // assets/standees/reika.png 비율
   const FIG_W = FIG_H * FIG_ASPECT;
   const BASE_R = 0.31;
   const BASE_H = 0.055;
@@ -1415,12 +1415,12 @@ function makeReikaStandee(spec, index) {
 
   /* ---------- 소품 피벗 (라운지 액션 호환) ---------- */
   const armR = new THREE.Object3D();
-  armR.position.set(FIG_W * 0.42, 1.16, 0.20);
+  armR.position.set(FIG_W * 0.54, 1.16, 0.16);
   pivot.add(armR);
   parts.armR = armR;
 
   const armL = new THREE.Object3D();
-  armL.position.set(-FIG_W * 0.42, 1.16, 0.20);
+  armL.position.set(-FIG_W * 0.54, 1.16, 0.16);
   pivot.add(armL);
   parts.armL = armL;
 

@@ -53,10 +53,19 @@ while rem.any():
     rem &= ~comp
 
 fig = Image.fromarray(((~bg) * 255).astype(np.uint8), "L")
-fig = fig.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(1.0))
+fig = fig.filter(ImageFilter.MinFilter(5)).filter(ImageFilter.GaussianBlur(1.0))
 s = np.asarray(fig).astype(np.float32) / 255.0
 alpha = np.clip((s - 0.30) / 0.55, 0.0, 1.0)
 alpha[s >= 0.85] = 1.0
+
+# 실루엣 테두리에 남은 흰 테(스튜디오 배경 번짐)를 밴드 안에서만 제거
+band = np.asarray(
+    Image.fromarray(((~bg) * 255).astype(np.uint8), "L")
+    .filter(ImageFilter.MaxFilter(5))
+    .filter(ImageFilter.GaussianBlur(1.2))
+).astype(np.float32) / 255.0
+white = np.clip((248.0 - mn) / 22.0, 0.0, 1.0)
+alpha = alpha * (1.0 - (1.0 - white) * band)
 alpha[bg] = 0.0
 
 # 경계 흰 오염 제거 (halo 완화)
