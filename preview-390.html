@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>390px 미리보기 (임시)</title>
+<style>
+  body { margin: 0; background: #2b2a31; font-family: system-ui, sans-serif; display: flex; justify-content: center; padding: 20px 0; }
+  .frame { background: #fff; border-radius: 26px; overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,.45); }
+  iframe { border: 0; display: block; }
+</style>
+</head>
+<body>
+  <div class="frame"><iframe id="f1" src="https://kylee2329-cpu.github.io/pickle-office/?v=standee6#office" width="390" height="844"></iframe></div>
+<script>
+  const t = Date.now();
+  document.querySelectorAll('iframe').forEach((f) => { f.src = f.src.replace('?v=', '?v=' + t + '&'); });
+</script>
+</body>
+</html>
