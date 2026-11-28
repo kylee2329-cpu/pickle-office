@@ -974,24 +974,23 @@ function makeReikaDoll(spec, index) {
 
   // 크림 블라우스 V 패널
   const vShape = new THREE.Shape();
-  vShape.moveTo(-0.05, 0.05);
-  vShape.lineTo(0.05, 0.05);
-  vShape.lineTo(0, -0.075);
-  vShape.lineTo(-0.05, 0.05);
+  vShape.moveTo(-0.042, 0.038);
+  vShape.lineTo(0.042, 0.038);
+  vShape.lineTo(0, -0.07);
+  vShape.lineTo(-0.042, 0.038);
   const blouse = new THREE.Mesh(new THREE.ExtrudeGeometry(vShape, {
     depth: 0.012, bevelEnabled: true, bevelSize: 0.005, bevelThickness: 0.004, bevelSegments: 2, curveSegments: 3,
   }), ivoryMat);
-  blouse.position.set(0, 0.805, 0.093);
+  blouse.position.set(0, 0.798, 0.096);
   blouse.rotation.x = 0.16;
   g.add(blouse);
 
-  // V 넥 크림 파이핑
-  [-1, 1].forEach((s) => {
-    const pipe = new THREE.Mesh(taperedTube([
-      [s * 0.053, 0.856, 0.055], [s * 0.058, 0.818, 0.095], [s * 0.026, 0.775, 0.108], [s * 0.002, 0.738, 0.112],
-    ], 0.0095, 0.007, 6, 18), creamMat);
-    g.add(pipe);
-  });
+  // 크림 셔츠 카라 (목 둘레 앞쪽)
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.056, 0.011, 6, 22, Math.PI * 1.15), ivoryMat);
+  collar.position.set(0, 0.872, 0.012);
+  collar.rotation.set(Math.PI / 2 + 0.18, 0, Math.PI * 0.925);
+  collar.scale.set(1, 0.78, 1);
+  g.add(collar);
 
   // 단추·가슴 배지
   [[0.703, 0.101], [0.667, 0.094]].forEach(([y, z]) => {
@@ -1040,22 +1039,22 @@ function makeReikaDoll(spec, index) {
     hand.scale.set(0.9, 1, 1);
     hand.castShadow = true;
     pivot.add(hand);
-    pivot.rotation.z = s * 0.13;
+    pivot.rotation.z = s * 0.17;
     g.add(pivot);
     if (s > 0) parts.armR = pivot; else parts.armL = pivot;
   });
 
   /* ---------- 목 ---------- */
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.037, 0.042, 0.062, 14), skinMat);
-  neck.position.set(0, 0.888, 0.002);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.039, 0.045, 0.062, 14), skinMat);
+  neck.position.set(0, 0.885, 0.002);
   g.add(neck);
 
   /* ---------- 머리 ---------- */
   const headGroup = new THREE.Group();
-  headGroup.position.set(0, 1.155, 0);
+  headGroup.position.set(0, 1.142, 0);
   g.add(headGroup);
   parts.head = headGroup;
-  parts.headBaseY = 1.155;
+  parts.headBaseY = 1.142;
 
   const headGeo = latheProfile([
     [0, -0.232], [0.036, -0.226], [0.072, -0.213], [0.108, -0.193],
@@ -1099,8 +1098,8 @@ function makeReikaDoll(spec, index) {
     small.scale.set(1, 1, 0.45);
     headGroup.add(small);
     const brow = new THREE.Mesh(taperedTube([
-      [s * 0.038, 0.012, 0.148], [s * 0.07, 0.03, 0.153], [s * 0.1, 0.018, 0.138],
-    ], 0.0065, 0.003, 6, 12), browMat);
+      [s * 0.036, 0.014, 0.146], [s * 0.07, 0.028, 0.152], [s * 0.102, 0.02, 0.136],
+    ], 0.0052, 0.0022, 6, 12), browMat);
     headGroup.add(brow);
     const blush = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 10), blushMat);
     blush.position.set(s * 0.118, -0.088, 0.106);
@@ -1135,12 +1134,26 @@ function makeReikaDoll(spec, index) {
   hair.add(cap);
 
   // 뒷머리 커튼 — 어깨까지 흐르는 한 덩어리 실루엣
-  const curtainGeo = latheProfile([
-    [0.196, 0.1], [0.202, 0.02], [0.206, -0.07], [0.202, -0.16],
-    [0.19, -0.24], [0.174, -0.32], [0.156, -0.4], [0.142, -0.465],
-    [0.118, -0.468], [0.126, -0.4], [0.142, -0.31], [0.158, -0.22],
-    [0.172, -0.12], [0.182, -0.02], [0.19, 0.1],
-  ], 44, Math.PI / 2, Math.PI);
+  const curtainOuter = [
+    [0.186, 0.035], [0.19, -0.04], [0.195, -0.12], [0.19, -0.2],
+    [0.194, -0.285], [0.178, -0.355], [0.16, -0.425], [0.14, -0.478],
+  ];
+  const curtainInner = [
+    [0.116, -0.478], [0.124, -0.4], [0.142, -0.325], [0.158, -0.25],
+    [0.174, -0.17], [0.181, -0.085], [0.182, 0.035],
+  ];
+  const curtainGeo = latheProfile([...curtainOuter, ...curtainInner], 48, Math.PI / 2, Math.PI);
+  const curtainR = (y) => {
+    for (let i = 0; i < curtainOuter.length - 1; i++) {
+      const a = curtainOuter[i];
+      const b = curtainOuter[i + 1];
+      if (y <= a[1] && y >= b[1]) {
+        const t = (a[1] - y) / (a[1] - b[1] || 1);
+        return a[0] + (b[0] - a[0]) * t;
+      }
+    }
+    return curtainOuter[curtainOuter.length - 1][0];
+  };
   const curtain = new THREE.Mesh(curtainGeo, hairMat);
   curtain.castShadow = true;
   hair.add(curtain);
@@ -1174,19 +1187,17 @@ function makeReikaDoll(spec, index) {
   });
 
   // 층진 웨이브 뒷머리 (커튼 위에 얹는 가닥)
-  for (let i = -2; i <= 2; i++) {
-    const x0 = i * 0.052;
-    const lock = new THREE.Mesh(taperedTube([
-      [x0, 0.14, -0.135],
-      [x0 * 1.25, 0.03, -0.196],
-      [x0 * 1.35, -0.1, -0.202],
-      [x0 * 1.3, -0.24, -0.186],
-      [x0 * 1.15, -0.38, -0.156],
-      [x0, -0.452, -0.126],
-    ], 0.04, 0.01, 8, 26), i % 2 === 0 ? hairDeepMat : hairMat);
-    lock.scale.set(1.25, 1, 0.6);
+  const backLockX = [-0.135, -0.072, -0.02, 0.02, 0.072, 0.135];
+  backLockX.forEach((x0, i) => {
+    const onSurface = (x, y) => -Math.sqrt(Math.max(0.0006, curtainR(y) ** 2 - x * x)) - 0.006;
+    const pts = [
+      [x0 * 0.9, 0.06], [x0 * 1.05, -0.05], [x0 * 1.12, -0.16],
+      [x0 * 1.1, -0.27], [x0 * 1.02, -0.37], [x0 * 0.92, -0.46],
+    ].map(([x, y]) => [x, y, onSurface(x, y)]);
+    const lock = new THREE.Mesh(taperedTube(pts, 0.036, 0.009, 8, 26), i % 2 === 0 ? hairDeepMat : hairMat);
+    lock.scale.set(1.2, 1, 0.55);
     hair.add(lock);
-  }
+  });
 
   // 보라 헤어핀 + 진주
   const pin = new THREE.Group();
@@ -1954,6 +1965,7 @@ window.PO3D = {
     };
   },
   setMotion(on) { S.motion = !!on; },
+  debugScene() { return S.scene; },
   setSelected(id) { S.selected = id; },
   // 카메라를 특정 비서에게 붙입니다. (검증·스크린샷용: yaw는 캐릭터 정면 기준 상대각)
   focusAgent(id, opts) {
