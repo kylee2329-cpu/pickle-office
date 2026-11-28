@@ -1395,8 +1395,8 @@ function frameCamera(opt) {
   const c = S.camera, ctl = S.controls;
   if (!c || !ctl) return;
   const o = opt || {};
-  const mx = o.x == null ? 0.985 : o.x;   // 가로는 꽉 차게
-  const my = o.y == null ? 1.12 : o.y;    // 세로는 아주 조금 넘쳐도 됨(앞쪽 바닥 여백)
+  const mx = o.x == null ? 0.99 : o.x;
+  const my = o.y == null ? 0.99 : o.y;
   const dir = new THREE.Vector3().subVectors(VIEW.pos, VIEW.target).normalize();
   const box = new THREE.Box3(new THREE.Vector3(-9.9, 0, -7.8), new THREE.Vector3(9.9, 3.1, 7.8));
   const corners = [];
