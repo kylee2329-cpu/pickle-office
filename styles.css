@@ -446,6 +446,73 @@ button { cursor: pointer; }
 .critter:active .body,
 .critter.is-selected .body,
 #map.idle-paused .critter .body { animation-play-state: paused; }
+
+/* 라운지 미니 액션 — 쉬는 비서의 몸이 아주 가볍게 까닭이고(rotate), 얼굴 옆 배지가 살랑입니다 */
+/* translate·rotate·transform만 쓰는 GPU 합성 애니메이션이라 레이아웃 재계산이 없습니다. */
+@keyframes lounge-sway {
+  0%, 100% { rotate: -2.4deg; }
+  50% { rotate: 2.4deg; }
+}
+.critter.has-rest .body {
+  transform-origin: 50% 88%;
+  animation-name: idle-float, lounge-sway;
+  animation-duration: 7.6s, 5.6s;
+  animation-timing-function: ease-in-out, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+  animation-delay: var(--delay, 0s), var(--sway-delay, 0s);
+  will-change: translate, rotate;
+}
+.critter[data-rest="golf"] .body { animation-duration: 7.6s, 6.6s; }
+.critter[data-rest="tennis"] .body { animation-duration: 7.6s, 4.6s; }
+.critter[data-rest="charge"] .body { animation-duration: 7.6s, 7.4s; }
+.critter[data-rest="stretch"] .body { animation-duration: 7.6s, 8s; }
+
+.lounge-badge {
+  position: absolute;
+  right: 0;
+  bottom: 11%;
+  display: grid;
+  place-items: center;
+  width: calc(19px * var(--cs));
+  height: calc(19px * var(--cs));
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .97);
+  color: #2b2620;
+  border: 1px solid color-mix(in srgb, var(--fc, var(--accent)) 36%, #fff);
+  box-shadow: 0 2px 7px rgba(40, 30, 15, .22), 0 0 0 2px rgba(255, 255, 255, .55);
+  font-family: "Gowun Dodum", "Noto Sans KR", sans-serif;
+  font-size: calc(10.5px * var(--cs));
+  line-height: 1;
+  opacity: 0;
+  scale: .72;
+  transition: opacity .26s ease, scale .3s cubic-bezier(.34, 1.56, .64, 1);
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+  will-change: transform;
+  z-index: 4;
+}
+.critter.has-rest .lounge-badge {
+  opacity: 1;
+  scale: 1;
+  animation: lounge-bob 3.6s ease-in-out infinite;
+  animation-delay: var(--sway-delay, 0s);
+}
+@keyframes lounge-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  45% { transform: translateY(calc(var(--cs, 1) * -2.6px)) rotate(-4deg); }
+  70% { transform: translateY(calc(var(--cs, 1) * -0.7px)) rotate(2deg); }
+}
+.critter[data-rest="golf"] .lounge-badge { animation-duration: 2.8s; }
+.critter[data-rest="tennis"] .lounge-badge { animation-duration: 2.2s; }
+.critter[data-rest="charge"] .lounge-badge { animation-duration: 4.2s; }
+.critter[data-rest="stretch"] .lounge-badge { animation-duration: 5s; }
+/* 조작 중에는 멈추고, 상세 카드가 열린 동안에는 배지도 내립니다 */
+.critter:hover .lounge-badge,
+.critter:focus-visible .lounge-badge,
+.critter.is-selected .lounge-badge,
+#map.idle-paused .critter .lounge-badge { animation-play-state: paused; }
+#map.idle-paused .critter .lounge-badge { opacity: 0; scale: .7; }
 .critter.is-selected::after {
   content: "";
   position: absolute;
@@ -1297,6 +1364,7 @@ button { cursor: pointer; }
   .foot { padding: 4px 16px 22px; }
   /* 모바일: 말풍선은 선택한 비서 것만 크게, 나머지는 숨겨 지도를 가리지 않게 */
   .bubble { display: none; }
+  .lounge-badge { width: calc(16px * var(--cs)); height: calc(16px * var(--cs)); font-size: calc(9px * var(--cs)); }
   .critter.is-selected .bubble,
   .critter:focus-visible .bubble {
     display: block;

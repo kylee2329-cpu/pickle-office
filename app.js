@@ -193,6 +193,7 @@
     renderedKeys: new Set(),
     replyTo: null,
     bubbleIdx: 0,
+    rest: {},             // 캐릭터별 지금 하는 쉼(☕ ⛳ 🎾 🔋) — 라운지 미니 배지
     pollTimer: null,
     presenceTimer: null,
     presencePollTimer: null,
@@ -296,10 +297,11 @@
     el.innerHTML = CHARS.map((c, i) => {
       const p = seatPos(c.id);
       return `<button class="critter" type="button" data-id="${c.id}"
-        style="--x:${p.x}%;--y:${p.y}%;--size:${c.size}px;--delay:-${(i * 0.8).toFixed(1)}s"
+        style="--x:${p.x}%;--y:${p.y}%;--size:${c.size}px;--delay:-${(i * 0.8).toFixed(1)}s;--sway-delay:-${(i * 1.1).toFixed(1)}s;--fc:${c.color}"
         aria-label="${c.name} 비서 ${c.rank}순위, ${ROOMS[seatOf(c.id).room].name}, 역할 보기">
         <span class="bubble" data-bubble="${c.id}"></span>
         <span class="body">${faceHTML(c, 'face-map')}</span>
+        <span class="lounge-badge" data-badge="${c.id}" aria-hidden="true"></span>
         <span class="name-tag" style="--tag-c:${c.color}"><b>${c.name}</b></span>
       </button>`;
     }).join('');
@@ -320,6 +322,8 @@
         resetIdle(c.id);
         setTimeout(schedulePlaceBubbles, 900);
       }
+      // 라운지가 아니면 미니 액션 배지를 내리고, 라운지로 돌아오면 다시 올립니다.
+      syncRest(c.id);
     });
   }
 
@@ -517,6 +521,64 @@
   ];
   const pickLoungeLine = () => LOUNGE_LINES[Math.floor(Math.random() * LOUNGE_LINES.length)];
 
+  /* ---------------- 라운지 미니 액션 배지 ---------------- */
+  // 메인 라운지에서 대기(idle)·휴식(resting) 중인 비서는 지금 하는 쉼을 얼굴 옆 작은 배지로 보여 줍니다.
+  // 배지는 그 비서의 현재 휴식 대사(☕ ⛳ 🎾 🔋 🧘)를 따라가고, 작업실·회의실로 옮기거나
+  // 상세 카드가 열리면(#map.idle-paused) CSS가 조용히 내립니다. 움직임은 전부 GPU 합성(transform·rotate)입니다.
+  const REST_KINDS = [
+    { kind: 'coffee', emoji: '☕', words: ['☕', '🍵'] },
+    { kind: 'golf', emoji: '⛳', words: ['⛳'] },
+    { kind: 'tennis', emoji: '🎾', words: ['🎾'] },
+    { kind: 'charge', emoji: '🔋', words: ['🔋'] },
+    { kind: 'stretch', emoji: '🧘', words: ['🧘'] },
+  ];
+  const restKindOf = (text) => {
+    const s = String(text == null ? '' : text);
+    return REST_KINDS.find((k) => k.words.some((w) => s.includes(w))) || null;
+  };
+  // 첫 화면에서도 비서마다 하나씩 — 대사가 바뀌면 그 대사의 이모지로 자연스럽게 따라갑니다.
+  const REST_DEFAULT = { kyle: 'coffee', cloie: 'coffee', aika: 'coffee', peika: 'charge', reika: 'golf', seika: 'tennis' };
+
+  function initRest() {
+    CHARS.forEach((c) => {
+      const k = REST_KINDS.find((x) => x.kind === REST_DEFAULT[c.id]);
+      if (k) state.rest[c.id] = k;
+    });
+    syncRestAll();
+  }
+
+  // 라운지에서 쉬는 중인가 — 다른 방이거나 작업·회의 중이면 배지를 내립니다.
+  function restActive(id) {
+    if (seatOf(id).room !== 'main') return false;
+    const ag = state.conn === 'live' ? state.agents[id] : null;
+    return !ag || !ag.status || ag.status === 'idle' || ag.status === 'resting';
+  }
+
+  function syncRest(id) {
+    const btn = $(`.critter[data-id="${id}"]`);
+    if (!btn) return;
+    const info = state.rest[id] || null;
+    const on = !!info && restActive(id);
+    btn.classList.toggle('has-rest', on);
+    if (info) btn.dataset.rest = info.kind;
+    else delete btn.dataset.rest;
+    const badge = btn.querySelector('.lounge-badge');
+    if (!badge || !info || badge.textContent === info.emoji) return;
+    badge.textContent = info.emoji;
+    // 동작이 바뀌면 배지가 한 번 톡 튀어 오르도록 바운스 애니메이션을 다시 시작합니다.
+    badge.style.animation = 'none';
+    void badge.offsetWidth;
+    badge.style.animation = '';
+  }
+
+  function syncRestAll() { CHARS.forEach((c) => syncRest(c.id)); }
+
+  function setRest(id, info) {
+    if (!info || state.rest[id] === info) return;
+    state.rest[id] = info;
+    syncRest(id);
+  }
+
   const bubbleUntil = {};
   // 말풍선은 두세 줄로 끝나게 줄입니다(전체 문구는 상세 카드·채팅에서 확인).
   const BUBBLE_LEN = 46;
@@ -527,6 +589,8 @@
   function setBubble(id, text, force) {
     const el = $(`[data-bubble="${id}"]`);
     if (!el) return;
+    // 휴식 대사에 붙은 이모지(☕ ⛳ 🎾 🔋)로 라운지 미니 액션 배지를 맞춥니다.
+    setRest(id, restKindOf(text));
     el.textContent = bubbleText(text);
     el.classList.add('is-on');
     schedulePlaceBubbles();
@@ -1188,6 +1252,7 @@
       stopSync();
     }
     renderCharBar();
+    syncRestAll();
   }
 
   async function loadLiveMessages() {
@@ -1294,6 +1359,8 @@
       };
     });
     state.agents = agents;
+    // 방·상태가 바뀌면 라운지 미니 액션 배지도 함께 맞춥니다(작업·회의 중이면 내려갑니다).
+    syncRestAll();
 
     let moved = false;
     const speak = [];
@@ -1733,6 +1800,7 @@
     initSeats();
     seedIfEmpty();
     renderCritters();
+    initRest();
     startIdleMotion();
     renderLegend();
     renderCharBar();
