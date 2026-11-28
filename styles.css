@@ -1527,7 +1527,7 @@ body.app {
   transition: transform .16s ease, box-shadow .2s ease, background .2s ease, color .2s ease;
   white-space: nowrap;
 }
-.navtab .nt-ico { font-size: 17px; line-height: 1; flex: none; display: inline-flex; align-items: center; justify-content: center; width: auto; min-width: 0; }
+.navtab .nt-ico { font-size: 17px; line-height: 1; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 23px; min-width: 23px; }
 .navtab:hover { background: #fffdf8; transform: translateY(-1px); box-shadow: 0 6px 14px rgba(130, 95, 50, .12); }
 .navtab.is-active {
   background: linear-gradient(180deg, #8d5c31, #6d4222);
