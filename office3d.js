@@ -1309,9 +1309,191 @@ function makeReikaDoll(spec, index) {
   return g;
 }
 
+/* ─────────────────────────────────────────────
+   2.5D 일러스트 스탠드 (레이카)
+   - 3D 원형 받침대 위에 세운 투명 PNG 일러스트
+   - 매 프레임 Y축 빌보드로 카메라를 바라봄 (옆면이 보이지 않음)
+   ───────────────────────────────────────────── */
+const STANDEE_TEX = {};
+function standeeTexture(src) {
+  if (!STANDEE_TEX[src]) {
+    const tex = new THREE.TextureLoader().load(src);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 8;
+    tex.minFilter = THREE.LinearFilter;
+    tex.generateMipmaps = false;
+    STANDEE_TEX[src] = tex;
+  }
+  return STANDEE_TEX[src];
+}
+
+function makeReikaStandee(spec, index) {
+  const g = new THREE.Group();
+  const parts = {};
+
+  const FIG_H = 1.90;                 // 일러스트 세로(월드 단위)
+  const FIG_ASPECT = 219 / 900;       // assets/standees/reika.png 비율
+  const FIG_W = FIG_H * FIG_ASPECT;
+  const BASE_R = 0.31;
+  const BASE_H = 0.055;
+
+  const creamMat = material(0xfdf6e9, { roughness: 0.52, metalness: 0.04 });
+  const purpleMat = material(RK.purple, { roughness: 0.45, metalness: 0.08 });
+  const purpleSoft = material(0xc9b4f5, { roughness: 0.5 });
+  const pearlMat = new THREE.MeshStandardMaterial({ color: RK.pearl, roughness: 0.2, metalness: 0.25 });
+
+  /* ---------- 3D 원형 받침대 ---------- */
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(BASE_R, BASE_R * 0.985, BASE_H, 56, 1), creamMat);
+  plate.position.y = BASE_H / 2;
+  plate.receiveShadow = true;
+  plate.castShadow = true;
+  g.add(plate);
+
+  const plateBand = new THREE.Mesh(
+    new THREE.CylinderGeometry(BASE_R * 1.004, BASE_R * 1.004, 0.016, 56, 1, true),
+    purpleMat,
+  );
+  plateBand.position.y = BASE_H * 0.42;
+  g.add(plateBand);
+
+  const plateRim = new THREE.Mesh(new THREE.TorusGeometry(BASE_R * 1.002, 0.009, 8, 64), purpleMat);
+  plateRim.rotation.x = Math.PI / 2;
+  plateRim.position.y = BASE_H;
+  g.add(plateRim);
+
+  const inlay = new THREE.Mesh(new THREE.TorusGeometry(BASE_R * 0.62, 0.0045, 6, 52), purpleSoft);
+  inlay.rotation.x = Math.PI / 2;
+  inlay.position.y = BASE_H + 0.001;
+  g.add(inlay);
+
+  // 받침대 그림자
+  const blob = new THREE.Mesh(
+    new THREE.CircleGeometry(BASE_R * 1.18, 32),
+    new THREE.MeshBasicMaterial({ color: 0x6b533a, transparent: true, opacity: 0.16 }),
+  );
+  blob.rotation.x = -Math.PI / 2;
+  blob.position.y = 0.018;
+  g.add(blob);
+
+  /* ---------- 일러스트 스탠드 평면 (Y 빌보드) ---------- */
+  const pivot = new THREE.Group();
+  pivot.position.set(0, BASE_H, 0);
+  g.add(pivot);
+  parts.standee = pivot;
+
+  const geo = new THREE.PlaneGeometry(FIG_W, FIG_H, 1, 1);
+  geo.translate(0, FIG_H / 2, 0);      // 바닥을 원점에 둠
+  const tex = standeeTexture('assets/standees/reika.png');
+  const mat = new THREE.MeshBasicMaterial({
+    map: tex,
+    transparent: true,
+    alphaTest: 0.08,
+    side: THREE.DoubleSide,
+    depthWrite: true,
+    toneMapped: false,
+  });
+  const plane = new THREE.Mesh(geo, mat);
+  plane.visible = false;
+  plane.castShadow = false;
+  plane.renderOrder = 2;
+  pivot.add(plane);
+  parts.plane = plane;
+
+  // 숨쉬기용 래퍼 (아래에서 위로 아주 살짝 늘어남)
+  const breathe = new THREE.Group();
+  pivot.add(breathe);
+  breathe.add(plane);
+  parts.torso = breathe;
+  parts.torsoBase = { x: 1, y: 1, z: 1 };
+
+  // 애니메이션 코드 호환용 머리 노드
+  const head = new THREE.Object3D();
+  head.position.y = 1.70;
+  pivot.add(head);
+  parts.head = head;
+  parts.headBaseY = 1.70;
+
+  /* ---------- 소품 피벗 (라운지 액션 호환) ---------- */
+  const armR = new THREE.Object3D();
+  armR.position.set(FIG_W * 0.30, 1.42, 0.06);
+  pivot.add(armR);
+  parts.armR = armR;
+
+  const armL = new THREE.Object3D();
+  armL.position.set(-FIG_W * 0.30, 1.42, 0.06);
+  pivot.add(armL);
+  parts.armL = armL;
+
+  const legL = new THREE.Object3D();
+  legL.position.set(-FIG_W * 0.12, 0.55, 0);
+  pivot.add(legL);
+  parts.legL = legL;
+  const legR = new THREE.Object3D();
+  legR.position.set(FIG_W * 0.12, 0.55, 0);
+  pivot.add(legR);
+  parts.legR = legR;
+
+  const putter = new THREE.Group();
+  addCyl(putter, 0.012, 0.012, 0.62, 0, -0.3, 0, material(0x9aa3ac), { seg: 6 });
+  addBox(putter, 0.12, 0.03, 0.05, 0, -0.6, 0.02, material(0x4e5862), { r: 0.01 });
+  putter.position.set(0, 0, 0.06);
+  putter.rotation.x = 0.25;
+  putter.visible = false;
+  armR.add(putter);
+  parts.putter = putter;
+
+  const racket = new THREE.Group();
+  addCyl(racket, 0.012, 0.012, 0.3, 0, -0.42, 0, material(0xc98b6b), { seg: 6 });
+  const rHead = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.016, 6, 18), material(0xd7cbb8));
+  rHead.position.set(0, -0.62, 0);
+  racket.add(rHead);
+  const strings = new THREE.Mesh(new THREE.CircleGeometry(0.115, 16), new THREE.MeshStandardMaterial({ color: 0xf6f2e8, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
+  strings.position.set(0, -0.62, 0);
+  racket.add(strings);
+  racket.rotation.x = 0.3;
+  racket.visible = false;
+  armR.add(racket);
+  parts.racket = racket;
+
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), material(0xffffff));
+  ball.position.set(FIG_W * 0.75, 0.06, 0.24);
+  ball.visible = false;
+  g.add(ball);
+  parts.ball = ball;
+
+  /* ---------- 받침대 명찰 ---------- */
+  const badge = new THREE.Group();
+  const plate2 = new THREE.Mesh(rboxGeo(0.086, 0.028, 0.006, 0.004, 2), creamMat);
+  badge.add(plate2);
+  const dot = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), purpleMat);
+  dot.position.set(-0.026, 0, 0.004);
+  badge.add(dot);
+  const bar = new THREE.Mesh(rboxGeo(0.034, 0.007, 0.004, 0.002, 2), pearlMat);
+  bar.position.set(0.012, 0, 0.004);
+  badge.add(bar);
+  badge.position.set(0, BASE_H + 0.028, BASE_R * 0.72);
+  pivot.add(badge);
+  parts.badge = badge;
+
+  /* ---------- 선택 링 ---------- */
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.36, 0.44, 40),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(spec.color), transparent: true, opacity: 0 }),
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.03;
+  g.add(ring);
+  parts.ring = ring;
+
+  g.traverse((o) => { if (o.isMesh) o.userData.agentId = spec.id; });
+
+  g.userData = { spec, parts, index, standee: true };
+  return g;
+}
+
 /* ---------------- 미니어처 인형 ---------------- */
 function makeDoll(spec, index) {
-  if (spec.id === 'reika') return makeReikaDoll(spec, index);
+  if (spec.id === 'reika') return makeReikaStandee(spec, index);
   const look = LOOKS[spec.id] || LOOKS.reika;
   const g = new THREE.Group();
   // 클레이 미니어처 느낌으로 옷 색을 살짝 밝힙니다.
@@ -1780,6 +1962,17 @@ function animate() {
   S.agents.forEach((agent) => {
     if (agent.walk) stepWalk(agent, dt);
     else stepIdle(agent, t);
+    // 2.5D 스탠드: 매 프레임 카메라 쪽으로 Y축 빌보드
+    const st = agent.group.userData.parts.standee;
+    if (st) {
+      const pl = agent.group.userData.parts.plane;
+      if (pl && !pl.visible && pl.material.map && pl.material.map.image) pl.visible = true;
+      const gp = agent.group.position;
+      const want = Math.atan2(S.camera.position.x - gp.x, S.camera.position.z - gp.z) - agent.group.rotation.y;
+      let d = want - st.rotation.y;
+      d = ((d + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+      st.rotation.y += d * (S.reduced ? 1 : 0.28);
+    }
     // 선택 링
     const ring = agent.group.userData.parts.ring;
     if (ring) {
