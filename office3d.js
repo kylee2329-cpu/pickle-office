@@ -220,7 +220,7 @@ function addLights(scene) {
   const hemi = new THREE.HemisphereLight(0xfff4e2, 0xd9bf99, 0.78);
   scene.add(hemi);
 
-  const key = new THREE.DirectionalLight(0xfff0d0, 2.45);
+  const key = new THREE.DirectionalLight(0xfff2d6, 1.75);
   key.position.set(9, 17, 12);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
@@ -987,7 +987,7 @@ function makeDoll(spec, index) {
 
   g.traverse((o) => { if (o.isMesh) o.userData.agentId = spec.id; });
 
-  g.scale.setScalar(1.28);
+  g.scale.setScalar(1.55);
   g.userData = { spec, parts, index };
   return g;
 }
@@ -1070,7 +1070,7 @@ function updateLabels() {
     const id = el.dataset.id;
     const agent = S.byId.get(id);
     if (!agent) return;
-    const p = V(agent.group.position.x, 2.08, agent.group.position.z).project(cam);
+    const p = V(agent.group.position.x, 2.50, agent.group.position.z).project(cam);
     const visible = p.z < 1 && p.x > -1.25 && p.x < 1.25 && p.y > -1.25 && p.y < 1.25;
     const dist = S.camera.position.distanceTo(V(agent.group.position.x, 1.0, agent.group.position.z));
     const scale = clamp((scaleRef / dist) * 1.5, 0.6, 1.15);
@@ -1271,8 +1271,7 @@ function start(cfg) {
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0;
+    renderer.toneMapping = THREE.NoToneMapping;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     S.renderer = renderer;
@@ -1294,7 +1293,7 @@ function start(cfg) {
     controls.maxDistance = 38;
     controls.minPolarAngle = 0.18;
     controls.maxPolarAngle = 1.3;
-    controls.target.set(0, 0.9, 0.4);
+    controls.target.copy(VIEW.target);
     S.controls = controls;
 
     // 캐릭터 생성
@@ -1328,6 +1327,8 @@ function start(cfg) {
       S.ro = new ResizeObserver(() => resize());
       S.ro.observe(S.stage);
     }
+
+    controls.addEventListener('start', () => { S.userMoved = true; });
 
     // 클릭 선택 (드래그와 구분)
     let downX = 0, downY = 0, downT = 0;
@@ -1390,7 +1391,7 @@ function resize() {
   const fit = clamp(1.34 - Math.min(1, w / h) * 0.24, 1.02, 1.34);
   if (!S.userMoved) {
     const aspect = w / h;
-    const k = aspect < 1.1 ? 1.3 : aspect < 1.55 ? 1.1 : 0.97;
+    const k = aspect < 1.05 ? 1.12 : aspect < 1.5 ? 0.96 : 0.80;
     S.camera.position.copy(VIEW.pos).multiplyScalar(k);
     S.camera.position.y = VIEW.pos.y * k * 1.02;
   }

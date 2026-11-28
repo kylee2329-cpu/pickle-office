@@ -1638,7 +1638,7 @@ body.app {
 .stage3d {
   position: relative;
   width: 100%;
-  height: clamp(360px, 62vh, 660px);
+  height: clamp(420px, 68vh, 720px);
   border-radius: 26px;
   overflow: hidden;
   background:
