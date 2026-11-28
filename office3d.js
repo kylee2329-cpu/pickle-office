@@ -828,8 +828,8 @@ function makeDoll(spec, index) {
   parts.torso = torso;
 
   // 치마/하의
-  const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 0.24, 16, 1, true), outfit);
-  skirt.position.set(0, 0.46, 0);
+  const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.275, 0.19, 16, 1, true), outfit);
+  skirt.position.set(0, 0.50, 0);
   skirt.castShadow = true;
   g.add(skirt);
 
@@ -842,8 +842,9 @@ function makeDoll(spec, index) {
   // 팔 (어깨 피벗)
   [-1, 1].forEach((s) => {
     const pivot = new THREE.Group();
-    pivot.position.set(s * 0.248, 0.82, 0.01);
-    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.058, 0.2, 4, 8), outfit);
+    pivot.position.set(s * 0.262, 0.82, 0.02);
+    const armMat = material(new THREE.Color(spec.color).lerp(new THREE.Color(0x6b4b33), 0.18), { roughness: 0.74 });
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.058, 0.2, 4, 8), armMat);
     arm.position.set(0, -0.13, 0);
     arm.castShadow = true;
     pivot.add(arm);
@@ -865,16 +866,21 @@ function makeDoll(spec, index) {
 
   // 머리카락
   const hair = new THREE.Group();
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.262, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.44), hairMat);
-  cap.position.set(0, 1.105, -0.022);
-  cap.scale.set(1.03, 1.04, 1.02);
+  // 얼굴 앞쪽(약 110°)은 비워 두고 덮는 머리카락 껍질 — 눈·볼·입이 보이게
+  const gap = 1.95;
+  const cap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.263, 26, 18, Math.PI / 2 + gap / 2, Math.PI * 2 - gap, 0, Math.PI * 0.66),
+    hairMat,
+  );
+  cap.position.set(0, 1.105, -0.008);
+  cap.scale.set(1.03, 1.04, 1.03);
   cap.castShadow = true;
   hair.add(cap);
-  // 앞머리
-  const fringe = new THREE.Mesh(new THREE.SphereGeometry(0.256, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.26), hairMat);
-  fringe.position.set(0, 1.135, 0.02);
-  fringe.rotation.x = 0.36;
-  fringe.scale.set(1.0, 0.86, 1.0);
+  // 앞머리 (이마만 살짝)
+  const fringe = new THREE.Mesh(new THREE.SphereGeometry(0.252, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.16), hairMat);
+  fringe.position.set(0, 1.175, 0.03);
+  fringe.rotation.x = 0.30;
+  fringe.scale.set(1.02, 0.9, 1.02);
   hair.add(fringe);
   // 뒷머리
   const back = new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 12), hairMat);
