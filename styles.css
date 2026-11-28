@@ -1746,6 +1746,7 @@ body.app {
 .stage3d .critter.is-selected .name-tag { background: #8a5a30; border-color: #6d4222; }
 .stage3d .critter.is-selected .name-tag b { color: #fff7ea; }
 
+.bubble[data-side="up"] { translate: -50% calc(-1 * var(--lift, 0px)); }
 .stage3d .critter .bubble {
   bottom: calc(100% - 2px);
   max-width: 152px;
@@ -1802,7 +1803,7 @@ body.app {
   animation: spin 0.9s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-.stage3d.is-ready .stage-loading { opacity: 0; pointer-events: none; }
+.stage3d.is-ready .stage-loading { opacity: 0; visibility: hidden; pointer-events: none; }
 
 .stage-note {
   position: absolute;

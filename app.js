@@ -696,7 +696,10 @@
 
   /* 말풍선 자동 배치 — 위/아래/오른쪽/왼쪽 중 얼굴·다른 말풍선·지도 밖을 피하는 자리를 골라,
      여섯 명이 동시에 말해도 서로 가리지 않게 합니다. */
-  const BUBBLE_SIDES = ['up', 'down', 'right', 'left'];
+  // 3D 이름표가 촘촘할 때는 위쪽으로 조금씩 더 띄워 보며 자리를 찾습니다.
+  const BUBBLE_CANDIDATES = [
+    ['up', 0], ['up', 22], ['up', 44], ['right', 0], ['left', 0], ['down', 0],
+  ];
   const rectOverlap = (a, b, m = 0) => (
     a.left < b.right - m && a.right > b.left + m && a.top < b.bottom - m && a.bottom > b.top + m
   );
@@ -737,23 +740,25 @@
       .forEach((it) => {
         const bub = it.bubble;
         if (!bub.offsetWidth) { bub.dataset.side = 'up'; return; }
-        const own = faces.find((f) => f.btn === it.btn);
-        let chosen = '';
-        for (const side of BUBBLE_SIDES) {
+        let chosen = null;
+        for (const [side, lift] of BUBBLE_CANDIDATES) {
           bub.dataset.side = side;
+          bub.style.setProperty('--lift', `${lift}px`);
           const r = bub.getBoundingClientRect();
           if (!r.width) continue;
           const inside = r.left >= mapBox.left + 2 && r.right <= mapBox.right - 2
             && r.top >= mapBox.top - 14 && r.bottom <= mapBox.bottom - 2;
           if (!inside) continue;
-          if (own && rectOverlap(r, own.box, 6)) continue;
-          if (faces.some((f) => f.btn !== it.btn && rectOverlap(r, f.box, 6))) continue;
-          if (placed.some((p) => rectOverlap(r, p, 6))) continue;
-          chosen = side;
+          // 자기 얼굴·이름표와는 겹쳐도 되지만, 다른 비서의 것은 피합니다.
+          if (faces.some((f) => f.btn === it.btn && rectOverlap(r, f.box, 4))) continue;
+          if (faces.some((f) => f.btn !== it.btn && rectOverlap(r, f.box, 4))) continue;
+          if (placed.some((p) => rectOverlap(r, p, 4))) continue;
+          chosen = [side, lift];
           break;
         }
-        if (!chosen) chosen = 'up';
-        bub.dataset.side = chosen;
+        if (!chosen) chosen = ['up', 44];
+        bub.dataset.side = chosen[0];
+        bub.style.setProperty('--lift', `${chosen[1]}px`);
         placed.push(bub.getBoundingClientRect());
       });
   }
