@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles.css?v=20261128vs" />
+<link rel="stylesheet" href="styles.css?v=20261128health" />
 </head>
 <body class="app">
 <a class="skip" href="#panel-office">본문으로 건너뛰기</a>
@@ -256,10 +256,13 @@ POST /messages.json
     "replyTo": { "key": "-Nxxx", "id": "...", "author": "kyle", "name": "KYLE", "text": "원문 요약(80자 내외)" } }
   (replyTo는 답글일 때만 붙는 선택 필드입니다. 없으면 일반 메시지로 읽으면 됩니다.)
 
-GET  /agents.json               (여섯 비서의 방·상태·하는 일)
+GET  /agents.json               (여섯 비서의 방·상태·하는 일 · 한도 소진 표시)
 PUT  /agents/&lt;id&gt;.json
   { "room": "main|meet|work", "status": "working|meeting|idle|resting",
-    "task": "짧은 상태 문구", "updatedAt": 1730000000000 }
+    "task": "짧은 상태 문구", "updatedAt": 1730000000000,
+    "limitExhausted": false, "limitMarkedAt": 1730000000000, "limitNote": "짧은 메모" }
+  (limitExhausted·limitMarkedAt·limitNote 는 선택 필드입니다. 앱의 '🪫 한도 소진 체크'는
+   PATCH 로 이 세 필드만 바꾸므로 room·status·task·updatedAt 은 그대로 남습니다.)
 
 GET  /presence.json             (누가 접속 중인지)
 PUT  /presence/&lt;clientId&gt;.json
@@ -309,7 +312,7 @@ DELETE /notes/&lt;key&gt;.json        (메모 카드의 ✕ · 확인 후 삭제
   }
 }
 </script>
-<script src="app.js?v=20261128vs"></script>
-<script type="module" src="office3d.js?v=20261128standee6"></script>
+<script src="app.js?v=20261128health"></script>
+<script type="module" src="office3d.js?v=20261128health"></script>
 </body>
 </html>

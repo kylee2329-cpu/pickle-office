@@ -563,6 +563,61 @@ button { cursor: pointer; }
 }
 .critter .name-tag b { color: var(--tag-c); }
 
+/* 한도 소진 · 무응답 — 이름표 아래 배지와 캐릭터 톤 */
+.critter .health-flag {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 11px);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: clamp(7.5px, calc(8.2px * var(--cs) + 1.4px), 10.5px);
+  font-weight: 900;
+  letter-spacing: -.01em;
+  line-height: 1.1;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  box-shadow: 0 2px 7px rgba(60, 35, 10, .2), 0 0 0 1.5px rgba(255, 255, 255, .6);
+  pointer-events: none;
+  user-select: none;
+  z-index: 6;
+}
+.critter .health-flag[hidden] { display: none !important; }
+.critter .health-flag.is-limit {
+  background: #fde1d1;
+  color: #9c2f12;
+  border-color: #f0b195;
+  animation: health-pulse 2.6s ease-in-out infinite;
+}
+.critter .health-flag.is-stale {
+  background: #f1ebdd;
+  color: #7a5a24;
+  border-color: #d9cbac;
+}
+@keyframes health-pulse {
+  0%, 100% { box-shadow: 0 2px 7px rgba(60, 35, 10, .2), 0 0 0 0 rgba(240, 150, 105, .55); }
+  55% { box-shadow: 0 2px 7px rgba(60, 35, 10, .2), 0 0 0 5px rgba(240, 150, 105, 0); }
+}
+/* 캐릭터: 한도 소진은 흐리고 휴식 톤, 무응답은 살짝 가라앉은 톤 */
+.critter.is-limit .body {
+  filter: grayscale(.55) brightness(.95) drop-shadow(0 5px 6px rgba(40, 30, 15, .14));
+  opacity: .74;
+}
+.critter.is-stale .body {
+  filter: grayscale(.35) drop-shadow(0 5px 6px rgba(40, 30, 15, .16));
+  opacity: .9;
+}
+.critter.is-limit .name-tag {
+  background: #fdf1e9;
+  border-color: #f0b195;
+}
+.critter.is-stale .name-tag {
+  background: #f6f1e6;
+  border-color: #ddd0b2;
+}
+.critter.is-limit .body,
+.critter.is-stale .body { animation-play-state: paused; }
+
 /* speech bubble — app.js의 placeBubbles()가 data-side로 위/아래/좌/우를 골라 겹치지 않게 놓습니다 */
 .bubble {
   position: absolute;
@@ -1716,6 +1771,8 @@ body.app {
   transition: none;
   will-change: transform;
 }
+/* 이름표·한도 소진/무응답 배지·말풍선이 방 이름표(zone-pin)에 가리지 않도록 */
+.stage3d .critters { z-index: 6; }
 .stage3d .critter:hover, .stage3d .critter.is-selected { z-index: 30; }
 
 .stage3d .critter .body {
@@ -1773,6 +1830,10 @@ body.app {
   height: 17px;
   font-size: 9px;
 }
+/* 이름표 바로 아래에 한도 소진·무응답 배지 */
+.stage3d .critter .health-flag { top: calc(100% + 3px); }
+.stage3d .critter.is-limit .name-tag { background: #fdf1e9; border-color: #f0b195; }
+.stage3d .critter.is-stale .name-tag { background: #f6f1e6; border-color: #ddd0b2; }
 
 .stage-badge {
   position: absolute;
@@ -2017,7 +2078,55 @@ body.app {
   overflow: hidden;
   word-break: keep-all;
 }
-.status-when { margin-top: 7px; font-size: 10.5px; color: #a2937d; display: flex; align-items: center; gap: 5px; }
+.status-when { margin-top: 7px; font-size: 10.5px; color: #a2937d; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+
+/* 한도 소진 · 무응답 배지 (비서현황 · 상세 카드 공용) */
+.health-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: -.01em;
+  white-space: nowrap;
+}
+.health-chip .hc-sub { font-style: normal; font-weight: 800; font-size: 9.5px; opacity: .85; margin-left: 2px; }
+.health-chip.is-active { background: #e7f4ec; color: #2f7d5c; border-color: #cbe5d7; }
+.health-chip.is-stale { background: #f4efe2; color: #8a6a2a; border-color: #e2d7bd; }
+.health-chip.is-limit { background: #fde5d8; color: #a33a15; border-color: #f2c2aa; }
+.health-chip.is-unknown { background: #f2efe8; color: #8a7f6d; border-color: #e5dfd3; }
+.status-card.is-stale { border-color: #e6dcc4; background: #fffdf7; }
+.status-card.is-limit { border-color: #f1c4ad; background: #fff8f4; }
+.status-name .health-chip { margin-left: auto; }
+.limit-btn {
+  margin-top: 9px;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px dashed #e2c9b2;
+  background: #fffdf8;
+  color: #8a5a30;
+  font-size: 11px;
+  font-weight: 800;
+  transition: all .16s;
+}
+.limit-btn:hover { border-color: #d08a54; color: #a3461a; background: #fdf3ea; transform: translateY(-1px); }
+.limit-btn.is-on {
+  border-style: solid;
+  border-color: #3f8f68;
+  background: #eaf6ee;
+  color: #2f7d5c;
+}
+.limit-btn.is-on:hover { border-color: #2f7d5c; color: #24634a; background: #e2f2e8; }
+.limit-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.limit-row .limit-btn { margin-top: 0; }
+.limit-hint { font-size: 10.5px; color: var(--ink-3); }
+.detail-when { margin-top: 7px; font-size: 11px; color: var(--ink-3); }
+.detail-note {
+  margin-top: 6px; font-size: 11px; color: #a3461a;
+  background: #fdf1e8; border: 1px solid #f3d2bd; border-radius: 10px; padding: 5px 9px;
+}
 
 /* 메모 보드 */
 .memo-card {
@@ -2165,6 +2274,7 @@ body.app {
 
   .stage3d .critter .body { width: 30px; height: 30px; }
   .stage3d .critter .name-tag { font-size: 9px; padding: 2px 6px; }
+  .stage3d .critter .health-flag { top: calc(100% + 2px); font-size: 8px; padding: 1px 5px; }
   .stage3d .critter .bubble { max-width: 150px; font-size: 10px; }
 
   .char-bar {

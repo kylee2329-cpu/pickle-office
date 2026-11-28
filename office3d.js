@@ -194,6 +194,7 @@ const S = {
   byId: new Map(),
   rooms: {},
   rest: {},
+  health: {},
   selected: null,
   meetingDemo: null,
   clock: null,
@@ -202,6 +203,13 @@ const S = {
   onSelect: null,
   reduced: false,
   lastLabels: {},
+};
+
+// 한도 소진·무응답 캐릭터의 색조(스탠드 텍스처에 곱해집니다)
+const HEALTH_TINT = {
+  normal: new THREE.Color(0xffffff),
+  stale: new THREE.Color(0xdfd9cd),   // ⏳ 무응답 — 회색·앰버 톤
+  limit: new THREE.Color(0xffc9b2),   // 🪫 한도 소진 — 주황·빨강 톤
 };
 
 function webglAvailable() {
@@ -1715,6 +1723,8 @@ function stepWalk(agent, dt) {
 
 function stepIdle(agent, t) {
   const p = agent.group.userData.parts;
+  // 한도 소진(🪫) 상태는 쉼 동작을 멈추고 조금 축 처진 톤으로 보여 줍니다.
+  const limited = (S.health[agent.id] || '') === 'limit';
   if (agent.baseYaw != null) {
     let d = agent.baseYaw - agent.group.rotation.y;
     while (d > Math.PI) d -= Math.PI * 2;
@@ -1722,9 +1732,10 @@ function stepIdle(agent, t) {
     agent.group.rotation.y += d * 0.07;
   }
   const ph = agent.phase || 0;
-  const rest = S.rest[agent.id] || '';
+  const rest = limited ? '' : (S.rest[agent.id] || '');
   const moving = S.motion && !S.reduced;
-  agent.group.position.y = moving ? Math.sin(t * 1.5 + ph) * 0.012 : 0;
+  agent.group.position.y = moving ? Math.sin(t * (limited ? 0.8 : 1.5) + ph) * (limited ? 0.005 : 0.012) : 0;
+  agent.group.rotation.x += ((limited ? 0.08 : 0) - agent.group.rotation.x) * 0.08;
   if (!moving) {
     if (p.legL) { p.legL.rotation.x = 0; p.legR.rotation.x = 0; }
     if (p.armL) { p.armL.rotation.set(0, 0, 0.16); p.armR.rotation.set(0, 0, -0.16); }
@@ -1786,6 +1797,15 @@ function animate() {
         pl.visible = true;
         const fit = agent.group.userData.parts.fitAspect;
         if (fit) fit();
+      }
+      // 한도 소진·무응답은 캐릭터를 흐리게/톤 다운해 한눈에 구분되게 합니다.
+      if (pl && pl.material) {
+        const hk = S.health[agent.id] || '';
+        const mat = pl.material;
+        const target = hk === 'limit' ? 0.45 : hk === 'stale' ? 0.72 : 1;
+        mat.opacity += (target - mat.opacity) * 0.12;
+        const tint = hk === 'limit' ? HEALTH_TINT.limit : hk === 'stale' ? HEALTH_TINT.stale : HEALTH_TINT.normal;
+        mat.color.lerp(tint, 0.12);
       }
       const gp = agent.group.position;
       const want = Math.atan2(S.camera.position.x - gp.x, S.camera.position.z - gp.z) - agent.group.rotation.y;
@@ -2034,6 +2054,13 @@ window.PO3D = {
   setRest(map) {
     if (!map) return;
     Object.entries(map).forEach(([id, info]) => { S.rest[id] = info && info.kind ? info.kind : ''; });
+  },
+  // 비서 상태: 'active' | 'stale'(⏳ 무응답) | 'limit'(🪫 한도 소진) | 'unknown'
+  setHealth(map) {
+    if (!map) return;
+    Object.entries(map).forEach(([id, kind]) => {
+      S.health[id] = kind === 'limit' || kind === 'stale' ? kind : '';
+    });
   },
   setRooms(map) {
     if (!map) return;

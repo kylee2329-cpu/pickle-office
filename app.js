@@ -92,6 +92,20 @@
   };
   // 메인 라운지는 쉬어 가는 자리라 기본 상태를 '대기(idle)'로 둡니다.
   const defaultStatus = (room) => (room === 'meet' ? 'meeting' : room === 'work' ? 'working' : 'idle');
+
+  /* ---------------- 한도 소진 · 무응답 판정 ---------------- */
+  // 두 갈래로 봅니다.
+  //  ① 수동: /agents/<id>.json 의 limitExhausted === true (대표님이 직접 체크)
+  //  ② 자동: 마지막 대화 이후 15분이 지나도록 그 비서가 /reads·/agents 를 갱신하지도,
+  //     새 글을 남기지도 않았으면 '⏳ 무응답(한도 의심)'. 새 글·갱신이 오면 바로 정상으로 돌아옵니다.
+  //     최근 대화가 하나도 없으면 마지막 활동 시각을 기준으로 삼습니다.
+  const STALE_MS = 15 * 60 * 1000;
+  const HEALTH = {
+    active: { kind: 'active', icon: '🟢', label: '활동중', short: '활동중', title: '정상 · 최근에 응답하고 있어요' },
+    stale: { kind: 'stale', icon: '⏳', label: '무응답', short: '무응답', title: '15분 넘게 응답이 없어요 · 한도 소진 의심' },
+    limit: { kind: 'limit', icon: '🪫', label: '한도 소진', short: '한도 소진', title: '대표님이 한도 소진으로 표시했어요' },
+    unknown: { kind: 'unknown', icon: '⚪', label: '기록 없음', short: '기록 없음', title: '읽음·활동 기록이 아직 없어요' },
+  };
   // 다른 피클이 쓴 이름도 같은 캐릭터로 받아 줍니다.
   const AGENT_ALIASES = {
     kyle: 'kyle', cloie: 'cloie', chloe: 'cloie',
@@ -199,6 +213,7 @@
     unread: { all: 0, meet: 0, work: 0 },
     reads: {},            // /reads/<id> → { lastKey, lastTs, updatedAt }
     readsSig: '',
+    healthSig: '',        // 한도 소진·무응답 배지가 바뀌었는지 비교용
     openReadId: null,     // 읽음 상세 패널을 연 메시지 id
     seenLive: new Set(),
     ownIds: new Set(),
@@ -231,6 +246,152 @@
 
   const currentMsgs = () => (state.conn === 'live' ? state.liveMsgs : state.demoMsgs);
   const seatOf = (id) => state.seats[id] || { room: 'main', idx: 0 };
+
+  /* ---------------- 한도 소진 · 무응답 계산 ---------------- */
+  const msgTs = (m) => Number(m && m.ts) || 0;
+  // 그 비서가 마지막으로 남긴 글 — 글을 올렸다면 응답한 것으로 봅니다.
+  function ownLastMsgTs(id) {
+    let ts = 0;
+    currentMsgs().forEach((m) => {
+      if (!m || agentIdOf(m.author) !== id) return;
+      const t = msgTs(m);
+      if (t > ts) ts = t;
+    });
+    return ts;
+  }
+  function latestMsgTs() {
+    let ts = 0;
+    currentMsgs().forEach((m) => { const t = msgTs(m); if (t > ts) ts = t; });
+    return ts;
+  }
+
+  // 각 비서의 지금 상태 — { kind: active|stale|limit|unknown, lastActive, quietMs, … }
+  function healthOf(id, now) {
+    const t = now == null ? Date.now() : now;
+    const ag = state.agents[id] || null;
+    const rd = state.reads[id] || null;
+    // ① 대표님이 직접 체크한 한도 소진이 가장 먼저입니다.
+    if (ag && ag.limitExhausted) {
+      return {
+        ...HEALTH.limit,
+        markedAt: Number(ag.limitMarkedAt) || 0,
+        note: ag.limitNote || '',
+        lastActive: 0,
+        quietMs: 0,
+      };
+    }
+    const agentAt = ag ? Number(ag.updatedAt) || 0 : 0;
+    const readAt = rd ? Math.max(Number(rd.lastTs) || 0, Number(rd.updatedAt) || 0) : 0;
+    // 데모 대화는 화면을 채우는 문구라 응답 판정에서 빼고, 실제 기록(/agents·/reads)만 씁니다.
+    const ownAt = state.conn === 'live' ? ownLastMsgTs(id) : 0;
+    const lastActive = Math.max(agentAt, readAt, ownAt);
+    // 실시간 모드에서는 '마지막 대화'가 기준, 데모 모드에서는 실제 대화가 아니므로 마지막 활동이 기준입니다.
+    const latest = state.conn === 'live' ? latestMsgTs() : 0;
+    const ref = latest || lastActive;
+    if (!ref) return { ...HEALTH.unknown, lastActive: 0, quietMs: 0, ref: 0 };
+    const quietMs = Math.max(0, t - ref);
+    // 대화가 있으면 '그 대화 뒤로 손댄 적이 없는지'까지 봅니다(글을 올렸거나 읽음·상태를 갱신하면 정상).
+    const silent = latest ? lastActive < latest : true;
+    if (quietMs >= STALE_MS && silent) return { ...HEALTH.stale, lastActive, quietMs, ref };
+    return { ...HEALTH.active, lastActive, quietMs, ref };
+  }
+
+  const healthBadgeText = (h) => `${h.icon} ${h.label}`;
+  const healthTitle = (h) => h.title;
+  // 화면에 '마지막 글'을 보여 줄 때만 씁니다(판정에는 실시간 모드에서만 반영).
+  const ownMsgFor = (id) => (state.conn === 'live' ? ownLastMsgTs(id) : 0);
+
+  // 3D 미니어처에 넘길 상태 맵 — 캐릭터를 흐리게/휴식 톤으로 바꿉니다.
+  function healthMapFor3D() {
+    const map = {};
+    CHARS.forEach((c) => { map[c.id] = healthOf(c.id).kind; });
+    return map;
+  }
+
+  // 오피스 맵 이름표 옆 배지와 캐릭터 톤을 맞춥니다.
+  function updateHealthFlags() {
+    CHARS.forEach((c) => {
+      const btn = $(`.critter[data-id="${c.id}"]`);
+      if (!btn) return;
+      const h = healthOf(c.id);
+      const on = h.kind === 'limit' || h.kind === 'stale';
+      btn.classList.toggle('is-limit', h.kind === 'limit');
+      btn.classList.toggle('is-stale', h.kind === 'stale');
+      const flag = btn.querySelector('.health-flag');
+      if (flag) {
+        flag.hidden = !on;
+        flag.classList.toggle('is-limit', h.kind === 'limit');
+        flag.classList.toggle('is-stale', h.kind === 'stale');
+        const text = on ? healthBadgeText(h) : '';
+        if (text && flag.textContent !== text) flag.textContent = text;
+        if (on) flag.title = healthTitle(h);
+      }
+      const tag = btn.querySelector('.name-tag');
+      if (tag) tag.dataset.health = h.kind;
+      btn.setAttribute('aria-label',
+        `${c.name} 비서 ${c.rank}순위, ${ROOMS[seatOf(c.id).room].name}, ${h.label}, 역할 보기`);
+    });
+  }
+
+  // 배지가 실제로 바뀐 경우에만 보드·상세 카드를 다시 그립니다(20초 주기 갱신용).
+  function refreshHealthUI(force) {
+    updateHealthFlags();
+    if (state.mode3d) window.PO3D?.setHealth?.(healthMapFor3D());
+    const sig = CHARS.map((c) => {
+      const h = healthOf(c.id);
+      return `${c.id}:${h.kind}:${Math.floor((h.lastActive || 0) / 60000)}:${Math.floor((h.quietMs || 0) / 60000)}`;
+    }).join('|');
+    if (!force && sig === state.healthSig) return;
+    state.healthSig = sig;
+    updateOfficeHero();
+    if (state.panel === 'status') renderStatusBoard();
+    if (state.selected) renderDetail();
+  }
+
+  /* ---------------- 한도 소진 토글 (대표님 수동 체크) ---------------- */
+  // /agents/<id>.json 은 PATCH 로 limitExhausted·limitMarkedAt·limitNote 만 고칩니다.
+  // 기존 room·status·task·updatedAt 은 그대로 두어 방·업무 표시와 활동 시각이 흔들리지 않습니다.
+  async function toggleLimit(id, opts = {}) {
+    const c = byId[id];
+    if (!c) return;
+    const cur = state.agents[id] || {};
+    const next = opts.force == null ? !cur.limitExhausted : !!opts.force;
+    const now = Date.now();
+    const note = next ? '대표님 수동 표시' : '';
+    const patch = {
+      limitExhausted: next ? true : null,
+      limitMarkedAt: next ? now : null,
+      limitNote: note || null,
+    };
+    const apply = () => {
+      state.agents[id] = { ...cur, limitExhausted: next, limitMarkedAt: next ? now : 0, limitNote: note };
+      state.healthSig = '';
+      refreshHealthUI(true);
+      if (state.selected === id) renderDetail();
+    };
+    apply();
+    if (state.conn === 'live' && state.fb) {
+      try {
+        const res = await fetch(`${state.fb}/agents/${encodeURIComponent(id)}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patch),
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        toast(next ? `🪫 ${c.name} 한도 소진으로 표시했어요` : `✅ ${c.name} 정상 복구로 돌렸어요`);
+      } catch (_) {
+        // 저장이 실패하면 화면도 되돌립니다.
+        if (cur && Object.keys(cur).length) state.agents[id] = cur;
+        else delete state.agents[id];
+        state.healthSig = '';
+        refreshHealthUI(true);
+        if (state.selected === id) renderDetail();
+        toast('저장에 실패했어요 · 연결을 확인해 주세요');
+      }
+      return;
+    }
+    toast(next ? `🪫 ${c.name} 한도 소진(데모 표시)` : `✅ ${c.name} 정상 복구(데모 표시)`);
+  }
 
   /* ---------------- glyphs ---------------- */
   function glyphSVG(c) {
@@ -321,9 +482,11 @@
         <span class="lounge-badge" data-badge="${c.id}" aria-hidden="true"></span>
         <span class="body">${faceHTML(c, 'face-map')}</span>
         <span class="name-tag" style="--tag-c:${c.color}"><b>${c.name}</b></span>
+        <span class="health-flag" data-health-flag="${c.id}" hidden></span>
       </button>`;
     }).join('');
     updateSelection();
+    updateHealthFlags();
   }
 
   /* ---------------- 3D 오피스 연결 ---------------- */
@@ -376,6 +539,7 @@
     pushRoomsTo3D();
     window.PO3D?.setRest?.(state.rest);
     window.PO3D?.setMotion?.(!motionOff());
+    window.PO3D?.setHealth?.(healthMapFor3D());
     document.body.classList.add('has-3d');
   }
 
@@ -405,6 +569,7 @@
       syncRest(c.id);
     });
     pushRoomsTo3D();
+    updateHealthFlags();
     renderStatusBoard();
   }
 
@@ -515,8 +680,13 @@
     if (state.selected) {
       const c = byId[state.selected];
       const room = seatOf(c.id).room;
-      const ag = state.conn === 'live' ? (state.agents[c.id] || null) : null;
+      const ag = state.agents[c.id] || null;
       const st = ag && STATUS[ag.status] ? STATUS[ag.status] : null;
+      const h = healthOf(c.id);
+      const rd = state.reads[c.id] || null;
+      const readAt = rd ? Math.max(Number(rd.lastTs) || 0, Number(rd.updatedAt) || 0) : 0;
+      const ownAt = ownMsgFor(c.id);
+      const limitOn = !!(ag && ag.limitExhausted);
       box.innerHTML = `
         <div class="detail-inner" style="--dc:${c.color}">
           <div class="detail-avatar">${faceHTML(c, 'face-detail')}</div>
@@ -525,11 +695,20 @@
               <span class="name">${c.name}</span>
               <span class="rank-chip">${c.rank}순위</span>
               <span class="room-chip">${ROOMS[room].icon} ${ROOMS[room].name}</span>
+              <span class="health-chip is-${h.kind}" title="${esc(healthTitle(h))}">${healthBadgeText(h)}${h.kind === 'stale' ? '(한도 의심)' : ''}</span>
               ${st ? `<span class="status-chip">${st.icon} ${st.label}</span>` : ''}
             </div>
             <p class="detail-role"><b>${c.title}</b> · ${c.role}</p>
             ${ag && ag.task && st ? `<p class="detail-task">“${esc(ag.task)}”</p>` : ''}
-            ${ag && ag.updatedAt ? `<p class="detail-when">최근 활동 ${relTime(ag.updatedAt)}</p>` : ''}
+            <p class="detail-when">🕒 마지막 읽음 ${readAt ? relTime(readAt) : '기록 없음'} · 최근 활동 ${ag && ag.updatedAt ? relTime(ag.updatedAt) : '기록 없음'}${ownAt ? ` · 마지막 글 ${relTime(ownAt)}` : ''}</p>
+            ${limitOn && (ag.limitNote || ag.limitMarkedAt)
+              ? `<p class="detail-note">🪫 ${esc(ag.limitNote || '한도 소진 표시')}${ag.limitMarkedAt ? ` · ${relTime(ag.limitMarkedAt)} 표시` : ''}</p>` : ''}
+            <div class="limit-row">
+              <button class="limit-btn${limitOn ? ' is-on' : ''}" type="button" data-limit-toggle="${c.id}">
+                ${limitOn ? '✅ 정상 복구' : '🪫 한도 소진 체크'}
+              </button>
+              <span class="limit-hint">${limitOn ? '해제하면 자동 판정으로 돌아가요' : '응답이 멈춘 비서를 바로 표시해 둘 수 있어요'}</span>
+            </div>
             <div class="move-row"><span>이동</span>
               ${ROOM_ORDER.map((r) => `<button class="move-btn${r === room ? ' is-here' : ''}" type="button" data-move="${c.id}" data-room="${r}">${ROOMS[r].name}</button>`).join('')}
             </div>
@@ -826,7 +1005,12 @@
     }
     const lead = $('#officeLead');
     if (lead) {
+      const limit = CHARS.filter((c) => healthOf(c.id).kind === 'limit').length;
+      const stale = CHARS.filter((c) => healthOf(c.id).kind === 'stale').length;
+      const alert = [limit ? `🪫 한도 소진 ${limit}명` : '', stale ? `⏳ 무응답 ${stale}명` : '']
+        .filter(Boolean).join(' · ');
       lead.textContent = byRoom.map((x) => `${ROOMS[x.r].name} ${x.n}명`).join(' · ')
+        + (alert ? ` · ${alert}` : '')
         + ' — 방 안의 비서를 눌러 보세요. 지금 하는 일과 방 이동을 바로 볼 수 있어요.';
     }
   }
@@ -975,29 +1159,42 @@
     if (!el) return;
     el.innerHTML = CHARS.map((c) => {
       const room = seatOf(c.id).room;
-      const ag = state.conn === 'live' ? (state.agents[c.id] || null) : null;
+      const ag = state.agents[c.id] || null;
       const st = ag && STATUS[ag.status] ? STATUS[ag.status] : null;
       const online = state.conn === 'live' && state.online[c.id];
       const task = ag && ag.task ? ag.task : (state.conn === 'live' ? '상태 문구가 아직 없어요' : c.quote);
+      const h = healthOf(c.id);
+      const rd = state.reads[c.id] || null;
+      const readAt = rd ? Math.max(Number(rd.lastTs) || 0, Number(rd.updatedAt) || 0) : 0;
+      const ownAt = ownMsgFor(c.id);
       const when = ag && ag.updatedAt ? `최근 활동 ${relTime(ag.updatedAt)}` : (state.conn === 'live' ? '기록 없음' : '데모 표시');
-      return `<article class="status-card" style="--fc:${c.color}">
+      const limitOn = !!(ag && ag.limitExhausted);
+      return `<article class="status-card is-${h.kind}" style="--fc:${c.color}">
         <div class="status-avatar"><img src="assets/avatars/${c.id}.png?v=${AVATAR_V}" alt="" width="384" height="384" loading="lazy" /></div>
         <div class="status-main">
-          <div class="status-name">${c.name}${online ? '<span class="on-air" title="접속 중"></span>' : ''}</div>
+          <div class="status-name">${c.name}${online ? '<span class="on-air" title="접속 중"></span>' : ''}
+            <span class="health-chip is-${h.kind}" title="${esc(healthTitle(h))}">${healthBadgeText(h)}${h.kind === 'stale' ? '<i class="hc-sub">(한도 의심)</i>' : ''}</span>
+          </div>
           <div class="status-role">${c.rank}순위 · ${esc(c.title)}</div>
           <div class="status-chips">
             <span class="chip room-${room}">${ROOMS[room].icon} ${ROOMS[room].name}</span>
             ${st ? `<span class="chip status-${esc(ag.status)}">${st.icon} ${st.label}</span>` : ''}
           </div>
           <p class="status-task">${esc(task)}</p>
-          <div class="status-when">🕒 ${when}</div>
+          <div class="status-when">🕒 ${when} · 마지막 읽음 ${readAt ? relTime(readAt) : '기록 없음'}${ownAt ? ` · 마지막 글 ${relTime(ownAt)}` : ''}</div>
+          <button class="limit-btn${limitOn ? ' is-on' : ''}" type="button" data-limit-toggle="${c.id}" title="${limitOn ? '한도 소진 표시를 해제합니다' : '이 비서를 한도 소진으로 표시합니다'}">
+            ${limitOn ? '✅ 정상 복구' : '🪫 한도 소진 체크'}
+          </button>
         </div>
       </article>`;
     }).join('');
     const sub = $('#statusSub');
     if (sub) {
       const rooms = ROOM_ORDER.map((r) => `${ROOMS[r].name} ${CHARS.filter((c) => seatOf(c.id).room === r).length}명`).join(' · ');
-      sub.textContent = `${state.conn === 'live' ? '실시간 DB 연결 · 3초마다 갱신' : '데모 모드 · 이 브라우저 기준'} — ${rooms}`;
+      const stale = CHARS.filter((c) => healthOf(c.id).kind === 'stale').length;
+      const limit = CHARS.filter((c) => healthOf(c.id).kind === 'limit').length;
+      const notes = [limit ? `🪫 한도 소진 ${limit}명` : '', stale ? `⏳ 무응답 ${stale}명` : ''].filter(Boolean).join(' · ');
+      sub.textContent = `${state.conn === 'live' ? '실시간 DB 연결 · 3초마다 갱신' : '데모 모드 · 이 브라우저 기준'} — ${rooms}${notes ? ` · ${notes}` : ''}`;
     }
   }
 
@@ -1506,6 +1703,7 @@
     }
 
     if (state.tab === 'all' || state.tab === msg.room) renderMessages(opts.scroll !== false);
+    refreshHealthUI();
   }
 
   function updateBadges() {
@@ -1644,6 +1842,37 @@
     writeJSON(LS.msgs, state.demoMsgs);
   }
 
+  /* ---------------- 데모 모드의 비서 상태(화면용) ---------------- */
+  // 데모에서는 실제 대화·읽음 기록이 없으므로, 세 가지 표시(🟢 활동중 · ⏳ 무응답 · 🪫 한도 소진)를
+  // 보여 줄 수 있도록 이 브라우저 안에서만 쓰는 상태를 깔아 둡니다. 실시간 DB에는 쓰지 않습니다.
+  function demoHealthSeed() {
+    const m = (min) => Date.now() - Math.round(min * 60000);
+    const rd = (min) => ({ lastTs: m(min), updatedAt: m(min) });
+    return {
+      agents: {
+        kyle: { room: 'main', status: 'working', task: '6인 건의사항 정리 완료 · 주말 대기 중', updatedAt: m(4) },
+        cloie: { room: 'main', status: 'idle', task: '인수인계 노트·주말 안건 정리 중', updatedAt: m(6) },
+        aika: { room: 'meet', status: 'meeting', task: '캠페인 지표 확인 중', updatedAt: m(42) },
+        peika: { room: 'work', status: 'working', task: '리포트 자동화 결과 정리 중', updatedAt: m(3) },
+        reika: { room: 'main', status: 'idle', task: '에그만 주문·CS 확인 중', updatedAt: m(2) },
+        seika: {
+          room: 'main', status: 'resting', task: '시장 동향 스캔 중', updatedAt: m(26),
+          limitExhausted: true, limitMarkedAt: m(26), limitNote: '데모 · 한도 소진 표시 예시',
+        },
+      },
+      reads: { kyle: rd(4), cloie: rd(6), aika: rd(42), peika: rd(3), reika: rd(2), seika: rd(26) },
+    };
+  }
+
+  function seedDemoHealth() {
+    const d = demoHealthSeed();
+    state.agents = d.agents;
+    state.reads = d.reads;
+    state.readsSig = '';
+    state.healthSig = '';
+    refreshHealthUI(true);
+  }
+
   /* ---------------- firebase REST ---------------- */
   function normBase(raw) {
     let s = String(raw || '').trim();
@@ -1689,6 +1918,7 @@
     renderNotes();
     if (mode === 'live') loadNotes(true);
     updateOfficeHero();
+    refreshHealthUI();
   }
 
   async function loadLiveMessages() {
@@ -1742,6 +1972,7 @@
         });
         updateBadges();
         renderMessages(atBottom);
+        refreshHealthUI();
       } else if (readsChanged) {
         refreshReadBadges();
       }
@@ -1792,6 +2023,9 @@
         status: STATUS[v.status] ? v.status : (v.status ? String(v.status) : ''),
         task: v.task ? String(v.task).slice(0, 160) : '',
         updatedAt: Number(v.updatedAt) || 0,
+        limitExhausted: v.limitExhausted === true || v.limitExhausted === 'true',
+        limitMarkedAt: Number(v.limitMarkedAt) || 0,
+        limitNote: v.limitNote ? String(v.limitNote).slice(0, 120) : '',
       };
     });
     state.agents = agents;
@@ -1823,7 +2057,7 @@
       if (state.selected) renderDetail();
     }
     speak.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 2).forEach((s) => setBubble(s.id, s.task, true));
-    if (state.panel === 'status') renderStatusBoard();
+    refreshHealthUI();
   }
 
   async function loadAgents() {
@@ -1838,12 +2072,19 @@
 
   async function pushAgent(id, room) {
     if (!state.fb || state.conn !== 'live') return;
+    const prev = state.agents[id] || {};
     const payload = {
       room,
       status: defaultStatus(room),
       task: `${ROOMS[room].name}로 이동했어요`,
       updatedAt: Date.now(),
     };
+    // 방을 옮겨도 대표님이 체크해 둔 한도 소진 표시는 지워지지 않게 함께 보냅니다.
+    if (prev.limitExhausted) {
+      payload.limitExhausted = true;
+      payload.limitMarkedAt = prev.limitMarkedAt || payload.updatedAt;
+      payload.limitNote = prev.limitNote || '';
+    }
     // 다음 폴링에서 같은 값이 되돌아와도 말풍선을 다시 띄우지 않도록 먼저 기록해 둡니다.
     state.agents[id] = payload;
     state.agentSig[id] = `${payload.room}|${payload.status}|${payload.task}|${payload.updatedAt}`;
@@ -1883,6 +2124,7 @@
       state.readsSig = sig;
       state.reads = next;
       refreshReadBadges();
+      refreshHealthUI();
     } catch (_) { /* 읽음 정보가 없어도 채팅은 그대로 */ }
   }
 
@@ -1972,6 +2214,7 @@
     refreshShareLink();
     renderMessages();
     loadNotes(true);
+    seedDemoHealth();
     if (!opts.quiet) toast('데모 모드로 돌아왔어요');
   }
 
@@ -2054,7 +2297,15 @@
       $('#detail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
 
+    // 비서현황 탭의 🪫 한도 소진 체크 / ✅ 정상 복구
+    $('#statusBoard').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-limit-toggle]');
+      if (b) toggleLimit(b.dataset.limitToggle);
+    });
+
     $('#detail').addEventListener('click', (e) => {
+      const limit = e.target.closest('[data-limit-toggle]');
+      if (limit) { toggleLimit(limit.dataset.limitToggle); return; }
       const move = e.target.closest('[data-move]');
       if (move) { moveChar(move.dataset.move, move.dataset.room); return; }
       if (e.target.closest('[data-close-detail]')) {
@@ -2325,18 +2576,29 @@
       connectLive(target, { quiet: true }).then((ok) => {
         if (ok) toast('실시간 DB에 연결됐어요');
       });
+    } else {
+      // 순수 데모(?demo=1 또는 데모 선택) — 화면에서만 쓰는 상태로 세 가지 표시를 보여 줍니다.
+      seedDemoHealth();
     }
 
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && state.conn === 'live') {
-        loadLiveMessages();
-        loadAgents();
-        loadReads();
+      if (document.visibilityState === 'visible') {
+        refreshHealthUI();
+        if (state.conn === 'live') {
+          loadLiveMessages();
+          loadAgents();
+          loadReads();
+        }
       }
     });
 
     setTimeout(tickBubbles, 1900);
     setInterval(tickBubbles, 7000);
+
+    // 15분 무응답 판정은 시간이 흘러야 바뀌므로, 화면이 보이는 동안 20초마다 다시 계산합니다.
+    setInterval(() => {
+      if (document.visibilityState === 'visible') refreshHealthUI();
+    }, 20000);
 
     // 3D 이름표가 매 프레임 움직이므로, 떠 있는 말풍선은 주기적으로 자리를 다시 잡습니다.
     setInterval(() => {
